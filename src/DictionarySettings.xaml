@@ -4,30 +4,29 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
              mc:Ignorable="d" 
-             Loaded="View_Loaded"
-             d:DesignHeight="300" Width="465">
+             Loaded="View_Loaded" Width="465" Height="365">
     <Grid Margin="10" VerticalAlignment="Top" >
         <Grid.RowDefinitions>
-            <RowDefinition Height="19*"/>
-            <RowDefinition Height="38"/>
-            <RowDefinition Height="19*"/>
-            <RowDefinition Height="19*"/>
-            <RowDefinition Height="19*"/>
-            <RowDefinition Height="19*"/>
+            <RowDefinition Height="43*"/>
+            <RowDefinition Height="64"/>
+            <RowDefinition Height="37*"/>
+            <RowDefinition Height="23*"/>
+            <RowDefinition Height="31*"/>
+            <RowDefinition Height="31*"/>
         </Grid.RowDefinitions>
-        <Label Grid.Row="0" Content="ICIBAToken" Margin="0,11,0,0"></Label>
-        <TextBox Grid.Row="0" x:Name="ICIBAToken" Margin="112,11,0,9" HorizontalAlignment="Left" Width="262"/>
-        <TextBlock Grid.Row="0" Margin="381,10,0,28" Grid.RowSpan="2"><Hyperlink RequestNavigate="Hyperlink_RequestNavigate" NavigateUri="http://open.iciba.com/?c=api">Get one</Hyperlink></TextBlock>
-        <Label Grid.Row="1" Content="BighugelabsToken" Margin="0,5,0,0"></Label>
-        <TextBox Grid.Row="1" x:Name="BighugelabsToken" Margin="112,10,0,10" HorizontalAlignment="Left" Width="262"/>
-        <TextBlock Grid.Row="1" Margin="381,10,0,28" Grid.RowSpan="2"><Hyperlink RequestNavigate="Hyperlink_RequestNavigate" NavigateUri="https://words.bighugelabs.com/getkey.php">Get one</Hyperlink></TextBlock>
-        <Label Grid.Row="2" Margin="0,5,0,0" Content="Max edit distance for spelling correction"></Label>
-        <TextBox Grid.Row="2" x:Name="MaxEditDistance"  Margin="229,10,0,10" HorizontalAlignment="Left" Width="46"/>
-        <CheckBox Grid.Row="3" IsChecked="False" x:Name="EnglishDefinition">Show English definition instead of Chinese translation</CheckBox>
-        <Label Grid.Row="4" Content="Jump to website when you enter any result. ({0} as placeholder of the word)" Margin="0,11,0,0"></Label>
-        <TextBox Grid.Row="5" x:Name="WordWebsite" Margin="0,0,0,0" HorizontalAlignment="Left" Width="400"/>
+        <Label Grid.Row="0" Content="ICIBAToken" Margin="0,16,0,6"></Label>
+        <TextBox Grid.Row="0" x:Name="ICIBAToken" Margin="120,11,0,9" HorizontalAlignment="Left" Width="262"/>
+        <TextBlock Grid.Row="0" Margin="390,10,0,28" Grid.RowSpan="2"><Hyperlink RequestNavigate="Hyperlink_RequestNavigate" NavigateUri="http://open.iciba.com/?c=api">Get one</Hyperlink></TextBlock>
+        <Label Grid.Row="1" Content="BighugelabsToken" Margin="0,15,0,3"></Label>
+        <TextBox Grid.Row="1" x:Name="BighugelabsToken" Margin="120,10,0,22" HorizontalAlignment="Left" Width="262"/>
+        <TextBlock Grid.Row="1" Margin="390,10,0,28" Grid.RowSpan="2"><Hyperlink RequestNavigate="Hyperlink_RequestNavigate" NavigateUri="https://words.bighugelabs.com/getkey.php">Get one</Hyperlink></TextBlock>
+        <Label Grid.Row="2" Margin="0,15,0,15" Content="Max edit distance for spelling correction" Grid.RowSpan="2"></Label>
+        <TextBox Grid.Row="2" x:Name="MaxEditDistance"  Margin="260,10,0,10" HorizontalAlignment="Left" Width="46"/>
+        <CheckBox Grid.Row="3" IsChecked="False" x:Name="EnglishDefinition" Margin="0,0,0,31" Grid.RowSpan="2">Show English definition instead of Chinese translation</CheckBox>
+        <Label Grid.Row="4" Content="Jump to website when you enter any result. ({0} as placeholder of the word)" Margin="0,11,0,26" Grid.RowSpan="2"></Label>
+        <TextBox Grid.Row="4" x:Name="WordWebsite" Margin="0,31,0,0" HorizontalAlignment="Left" Width="400" Grid.RowSpan="2"/>
 
-        <Label Grid.Row="6" Content="You need to restart Wox to apply the changes." FontWeight="Bold" Margin="0,26,-0.2,-26"></Label>
+        <Label Grid.Row="5" Content="You need to restart Flow Launcher to apply the changes." FontWeight="Bold" Margin="0,45,0,-26"></Label>
 
     </Grid>
 </UserControl>
