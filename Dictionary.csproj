@@ -15,6 +15,11 @@
     <OutputPath>.\Output\Release\Wox.Plugin.WoxDictionary</OutputPath>
   </PropertyGroup>
   <ItemGroup>
+    <None Include="plugin.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
     <Reference Include="System.Speech" />
   </ItemGroup>
   <ItemGroup>
