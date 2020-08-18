@@ -5,7 +5,7 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
-using System.Speech.Synthesis;
+//using System.Speech.Synthesis;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows;
@@ -22,7 +22,7 @@ namespace Dictionary
         private Iciba iciba;
         private PluginInitContext context;
         private Settings settings;
-        private SpeechSynthesizer synth;
+        //private SpeechSynthesizer synth;
 
         // These two are only for jumping in MakeResultItem
         private string ActionWord;
@@ -67,6 +67,9 @@ namespace Dictionary
                 }
                 return true;
             }
+            /*
+             Todo: System.Speech.Synthesis is not supported in .Net Core, need to find alternative. 
+            https://github.com/dotnet/runtime/issues/30991
             bool ReadWordIfNeeded(ActionContext e)
             {
                 if (!e.SpecialKeyState.CtrlPressed) return false;
@@ -78,6 +81,7 @@ namespace Dictionary
                 synth.SpeakAsync(getWord());
                 return true;
             }
+            */
 
             Func<ActionContext, bool> ActionFunc;
             if (extraAction != null)
@@ -85,7 +89,7 @@ namespace Dictionary
                 ActionFunc = e =>
                 {
                     if (CopyIfNeeded(e)) return true;
-                    if (ReadWordIfNeeded(e)) return false;
+                    //if (ReadWordIfNeeded(e)) return false;
                     context.API.ChangeQuery(ActionWord + " " + (word ?? QueryWord) + extraAction);
                     return false;
                 };
@@ -94,7 +98,7 @@ namespace Dictionary
             {
                 ActionFunc = e => {
                     if(CopyIfNeeded(e)) return true;
-                    if(ReadWordIfNeeded(e)) return false;
+                    //if(ReadWordIfNeeded(e)) return false;
                     if(settings.WordWebsite!="") System.Diagnostics.Process.Start(string.Format(settings.WordWebsite, getWord()));
                     return true;
                 };
