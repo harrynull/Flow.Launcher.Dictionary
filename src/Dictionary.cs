@@ -36,6 +36,10 @@ namespace Dictionary
         public void Init(PluginInitContext context)
         {
             string CurrentPath = context.CurrentPluginMetadata.PluginDirectory;
+
+            if (!Directory.Exists(Path.Combine(CurrentPath, "config")))
+                Directory.CreateDirectory(Path.Combine(CurrentPath, "config"));
+
             string ConfigFile = CurrentPath + "/config/config.json";
             if (File.Exists(ConfigFile))
                 settings = JsonConvert.DeserializeObject<Settings>(File.ReadAllText(ConfigFile));
