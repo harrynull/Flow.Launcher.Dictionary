@@ -23,7 +23,7 @@
         <Label Grid.Row="2" Margin="0,15,0,15" Content="Max edit distance for spelling correction" Grid.RowSpan="2"></Label>
         <TextBox Grid.Row="2" x:Name="MaxEditDistance"  Margin="260,10,0,10" HorizontalAlignment="Left" Width="46"/>
         <CheckBox Grid.Row="3" IsChecked="False" x:Name="EnglishDefinition" Margin="0,0,0,31" Grid.RowSpan="2">Show English definition instead of Chinese translation</CheckBox>
-        <Label Grid.Row="4" Content="Jump to website when you enter any result. ({0} as placeholder of the word)" Margin="0,11,0,26" Grid.RowSpan="2"></Label>
+        <Label Grid.Row="4" Content="Jump to website when you enter any result" Margin="0,11,0,26" Grid.RowSpan="2"></Label>
         <TextBox Grid.Row="4" x:Name="WordWebsite" Margin="0,31,0,0" HorizontalAlignment="Left" Width="400" Grid.RowSpan="2"/>
 
         <Label Grid.Row="5" Content="You need to restart Flow Launcher to apply the changes." FontWeight="Bold" Margin="0,45,0,-26"></Label>
