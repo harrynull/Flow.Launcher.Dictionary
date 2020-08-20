@@ -8,6 +8,7 @@ Changes contained in this port:
 
 - Upgraded to .Net Core 3.1
 - Changed Wox's plugin library to Flow's plugin library
+- Removed System.Speech.Synthesis which is not supported in .Net Core https://github.com/dotnet/runtime/issues/30991
 
 
 ----------------------------------
