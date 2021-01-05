@@ -14,7 +14,7 @@ using Flow.Launcher.Plugin;
 
 namespace Dictionary
 {
-    public class Main : IPlugin, ISettingProvider
+    public class Main : IPlugin, ISettingProvider, IResultUpdated
     {
         private ECDict ecdict;
         private WordCorrection wordCorrection;
@@ -27,6 +27,8 @@ namespace Dictionary
         // These two are only for jumping in MakeResultItem
         private string ActionWord;
         private string QueryWord;
+
+        public event ResultUpdatedEventHandler ResultsUpdated;
 
         public Control CreateSettingPanel()
         {
@@ -163,9 +165,18 @@ namespace Dictionary
                 results.Add(MakeResultItem("Definition", word.definition.Replace("\n", "; "), "d"));
             if (word.exchange != "")
                 results.Add(MakeResultItem("Exchanges", word.exchange, "e"));
+
+            ResultsUpdated?.Invoke(this, new ResultUpdatedEventArgs
+            {
+                Query = query,
+                Results = results
+            });
+
             var synonymsResult = string.Join("; ", synonyms.Query(word.word));
             if (synonymsResult != "")
                 results.Add(MakeResultItem("Synonym", synonymsResult, "s"));
+
+
             return results;
         }
 
