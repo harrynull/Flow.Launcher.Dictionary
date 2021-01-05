@@ -63,7 +63,7 @@ namespace Dictionary
                 if (!e.SpecialKeyState.AltPressed) return false;
                 try
                 {
-                    Clipboard.SetText(getWord());
+                    Clipboard.SetDataObject(getWord());
                 }
                 catch (ExternalException ee)
                 {
