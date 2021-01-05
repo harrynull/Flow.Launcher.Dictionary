@@ -10,7 +10,7 @@ namespace Dictionary
 {
     class Synonyms
     {
-        private string ApiToken;
+        private readonly string ApiToken;
         public Synonyms(string apiToken)
         {
             ApiToken = apiToken;
@@ -21,20 +21,18 @@ namespace Dictionary
             try
             {
                 WebRequest request = WebRequest.Create(
-                  String.Format("http://words.bighugelabs.com/api/2/{0}/{1}/", ApiToken, vocab));
-                WebResponse response = request.GetResponse();
+                  string.Format("http://words.bighugelabs.com/api/2/{0}/{1}/", ApiToken, vocab));
+                using WebResponse response = request.GetResponse();
                 Stream dataStream = response.GetResponseStream();
-                StreamReader reader = new StreamReader(dataStream);
-                string strResponse = reader.ReadToEnd();
-
-                foreach (var line in strResponse.Split('\n'))
+                using StreamReader reader = new StreamReader(dataStream);
+                
+                while(!reader.EndOfStream)
                 {
+                    var line = reader.ReadLine();
                     if (line == "") continue;
                     var parts = line.Split('|');
                     if (parts[1] == "syn") ret.Add(parts[2]);
                 }
-                reader.Close();
-                response.Close();
             }
             catch (Exception) { }
             return ret;

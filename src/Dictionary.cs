@@ -100,10 +100,11 @@ namespace Dictionary
             }
             else
             {
-                ActionFunc = e => {
-                    if(CopyIfNeeded(e)) return true;
+                ActionFunc = e =>
+                {
+                    if (CopyIfNeeded(e)) return true;
                     //if(ReadWordIfNeeded(e)) return false;
-                    if(settings.WordWebsite!="") System.Diagnostics.Process.Start(string.Format(settings.WordWebsite, getWord()));
+                    if (settings.WordWebsite != "") System.Diagnostics.Process.Start(string.Format(settings.WordWebsite, getWord()));
                     return true;
                 };
             }
@@ -125,41 +126,22 @@ namespace Dictionary
         // English -> Chinese, supports fuzzy search.
         private List<Result> FirstLevelQuery(Query query)
         {
-            bool IsExistsInResults(List<Result> res, string word)
-            {
-                foreach (var item in res)
-                {
-                    if (item.Title == word) return true;
-                }
-                return false;
-            }
-
             string queryWord = query.Search;
-            List<Result> results = new List<Result>();
+            IEnumerable<Word> results = Enumerable.Empty<Word>();
 
             // Pull fully match first.
             Word fullMatch = ecdict.Query(query.Search);
-            if (fullMatch != null) results.Add(MakeWordResult(fullMatch));
+            if (fullMatch != null)
+                results = results.Append(fullMatch);
 
             // Then fuzzy search results. (since it's usually only a few)
             List<SymSpell.SuggestItem> suggestions = wordCorrection.Correct(queryWord);
-            foreach (var suggestion in suggestions)
-            {
-                Word word = ecdict.Query(suggestion.term);
-                
-                if(!IsExistsInResults(results, word.word)) // to avoid repetitive results
-                    results.Add(MakeWordResult(word));
-            }
 
-            // Lastly, the words beginning with the query.
-            var result_begin = ecdict.QueryBeginningWith(queryWord);
-            foreach (var word in result_begin)
-            {
-                if (!IsExistsInResults(results, word.word))
-                    results.Add(MakeWordResult(word));
-            }
-
-            return results;
+            return results.Concat(ecdict.QueryRange(suggestions))
+                          .Concat(ecdict.QueryBeginningWith(queryWord))
+                          .Distinct()
+                          .Select(w => MakeWordResult(w))
+                          .ToList();
         }
 
         // Detailed information of a word.
@@ -167,7 +149,7 @@ namespace Dictionary
         // Fuzzy search disabled.
         private List<Result> DetailedQuery(Query query)
         {
-            string queryWord = query.Search.Substring(0, query.Search.Length - 1); // Remove the !
+            string queryWord = query.Search[0..^1]; // Remove the !
 
             List<Result> results = new List<Result>();
 
@@ -181,7 +163,7 @@ namespace Dictionary
                 results.Add(MakeResultItem("Definition", word.definition.Replace("\n", "; "), "d"));
             if (word.exchange != "")
                 results.Add(MakeResultItem("Exchanges", word.exchange, "e"));
-            var synonymsResult = String.Join("; ", synonyms.Query(word.word));
+            var synonymsResult = string.Join("; ", synonyms.Query(word.word));
             if (synonymsResult != "")
                 results.Add(MakeResultItem("Synonym", synonymsResult, "s"));
             return results;
@@ -192,7 +174,7 @@ namespace Dictionary
         // Fuzzy search disabled.
         private List<Result> TranslationQuery(Query query)
         {
-            string queryWord = query.Search.Substring(0, query.Search.Length - 2); // Get the word
+            string queryWord = query.Search[0..^2]; // Get the word
 
             List<Result> results = new List<Result>();
 
@@ -211,7 +193,7 @@ namespace Dictionary
         // Fuzzy search disabled.
         private List<Result> DefinitionQuery(Query query)
         {
-            string queryWord = query.Search.Substring(0, query.Search.Length - 2); // Get the word
+            string queryWord = query.Search[0..^2]; // Get the word
 
             List<Result> results = new List<Result>();
 
@@ -230,7 +212,7 @@ namespace Dictionary
         // Fuzzy search disabled.
         private List<Result> ExchangeQuery(Query query)
         {
-            string queryWord = query.Search.Substring(0, query.Search.Length - 2); // Get the word
+            string queryWord = query.Search[0..^2]; // Get the word
 
             List<Result> results = new List<Result>();
 
@@ -250,7 +232,7 @@ namespace Dictionary
         // Internet access needed.
         private List<Result> SynonymQuery(Query query)
         {
-            string queryWord = query.Search.Substring(0, query.Search.Length - 2); // Get the word
+            string queryWord = query.Search[0..^2]; // Get the word
 
             List<Result> results = new List<Result>();
 
@@ -293,7 +275,8 @@ namespace Dictionary
 
         private bool IsChinese(string cn)
         {
-            foreach (char c in cn) { 
+            foreach (char c in cn)
+            {
                 UnicodeCategory cat = char.GetUnicodeCategory(c);
                 if (cat == UnicodeCategory.OtherLetter)
                     return true;
@@ -307,19 +290,17 @@ namespace Dictionary
             string queryWord = query.Search;
             if (queryWord == "") return new List<Result>();
             QueryWord = queryWord;
-            if (queryWord.Last() == '!') // An '!' at the end enables detailed query
-                return DetailedQuery(query);
-            else if (queryWord.Length >= 2 && queryWord.Substring(queryWord.Length - 2, 2) == "!d")
-                return DefinitionQuery(query);
-            else if (queryWord.Length >= 2 && queryWord.Substring(queryWord.Length - 2, 2) == "!t")
-                return TranslationQuery(query);
-            else if (queryWord.Length >= 2 && queryWord.Substring(queryWord.Length - 2, 2) == "!e")
-                return ExchangeQuery(query);
-            else if (queryWord.Length >= 2 && queryWord.Substring(queryWord.Length - 2, 2) == "!s")
-                return SynonymQuery(query);
-            else if (IsChinese(queryWord))
-                return ChineseQuery(query);
-            else return FirstLevelQuery(query); // First-level query
+
+            return queryWord.Substring(queryWord.Length - 2, 2) switch
+            {
+                "!d" => DefinitionQuery(query),
+                "!t" => TranslationQuery(query),
+                "!e" => ExchangeQuery(query),
+                "!s" => SynonymQuery(query),
+                _ when queryWord[^1] == '!' => DetailedQuery(query),
+                _ when IsChinese(queryWord) => ChineseQuery(query),
+                _ => FirstLevelQuery(query)
+            };
         }
     }
 }

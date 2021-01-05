@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace Dictionary
 {
-    class Word
+    class Word : IEquatable<Word>
     {
         public string word, translation, exchange, phonetic, definition;
         public Word(SQLiteDataReader reader)
@@ -17,6 +17,16 @@ namespace Dictionary
             exchange = reader["exchange"].ToString();
             phonetic = reader["phonetic"].ToString();
             definition = reader["definition"].ToString();
+        }
+
+        public bool Equals(Word obj)
+        {
+            return word == obj.word;
+        }
+
+        public override int GetHashCode()
+        {
+            return word.GetHashCode();
         }
     }
 }
