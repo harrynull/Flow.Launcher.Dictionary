@@ -302,7 +302,10 @@ namespace Dictionary
             if (queryWord == "") return new List<Result>();
             QueryWord = queryWord;
 
-            return queryWord.Substring(queryWord.Length - 2, 2) switch
+            if (queryWord.Length < 2)
+                return FirstLevelQuery(query);
+
+            return queryWord[^2..] switch
             {
                 "!d" => DefinitionQuery(query),
                 "!t" => TranslationQuery(query),
