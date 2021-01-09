@@ -10,7 +10,7 @@ namespace Dictionary
 {
     class ECDict
     {
-        SQLiteConnection conn;
+        readonly SQLiteConnection conn;
         public ECDict(string filename)
         {
             conn = new SQLiteConnection("Data Source=" + filename + ";Version=3;");
@@ -23,40 +23,50 @@ namespace Dictionary
         {
             if (word == "") return null;
 
-            string sql = "select * from stardict where word = '" + word + "'";
+            string sql = $"select * from stardict where word = '{word}'";
 
             Word ret = null;
-            using (SQLiteCommand cmd = new SQLiteCommand(sql, conn))
-            {
-                using (SQLiteDataReader reader = cmd.ExecuteReader())
-                {
-                    if (reader.Read())
-                        ret = new Word(reader);
-                }
-            }
+
+            using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
+            using SQLiteDataReader reader = cmd.ExecuteReader();
+
+            if (reader.Read())
+                ret = new Word(reader);
+
             return ret;
         }
 
-        // This will include exact match and words beginning with it
-        public List<Word> QueryBeginningWith(string word, int limit = 20)
+        public IEnumerable<Word> QueryRange(IEnumerable<SymSpell.SuggestItem> words)
         {
-            if (word == "") return new List<Word>();
+            string queryTerms = string.Join(',', words.Select(w => $"'{w.term}'"));
+            if (queryTerms.Length == 0)
+                yield break;
+
+            string sql = $"select * from stardict where word in ({queryTerms})";
+
+
+            using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
+            using SQLiteDataReader reader = cmd.ExecuteReader();
+
+            while (reader.Read())
+                yield return new Word(reader);
+
+        }
+
+        // This will include exact match and words beginning with it
+        public IEnumerable<Word> QueryBeginningWith(string word, int limit = 20)
+        {
+            if (word.Length == 0) yield break;
 
             string sql = "select * from stardict where word like '" + word +
-                "%' order by frq = 0, frq asc limit " + limit;
-            
-            List<Word> ret = new List<Word>();
-            using (SQLiteCommand cmd = new SQLiteCommand(sql, conn))
+                "%' order by frq > 0 desc, frq asc limit " + limit;
+
+            using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
+            using SQLiteDataReader reader = cmd.ExecuteReader();
+            while (reader.Read())
             {
-                using (SQLiteDataReader reader = cmd.ExecuteReader())
-                {
-                    while (reader.Read())
-                    {
-                        ret.Add(new Word(reader));
-                    }
-                }
+                yield return new Word(reader);
             }
-            return ret;
         }
     }
 }
