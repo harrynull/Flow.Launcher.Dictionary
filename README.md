@@ -2,7 +2,9 @@ This is a port of the Wox plugin [WoxDictionary](https://github.com/harrynull/Wo
 
 This port is intended to be used for [Flow Launcher](https://github.com/Flow-Launcher/Flow.Launcher). It will not work for Wox.
 
-To download this plugin, go to the latest [release](https://github.com/jjw24/WoxDictionary/releases/latest) and extract the zip file to Flow's user data plugin directory.
+To use this plugin:
+
+From Flow Launcher, type `pm install woxdictionary`
 
 Changes contained in this port:
 
