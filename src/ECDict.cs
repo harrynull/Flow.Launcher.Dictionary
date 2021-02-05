@@ -15,7 +15,7 @@ namespace Dictionary
         readonly SQLiteConnection conn;
         public ECDict(string filename)
         {
-            conn = new SQLiteConnection("Data Source=" + filename + ";Version=3;");
+            conn = new SQLiteConnection("Data Source=" + filename + ";Version=3;Read Only=True");
             conn.Open();
         }
 
@@ -40,11 +40,11 @@ namespace Dictionary
 
         public async IAsyncEnumerable<Word> QueryRange(IEnumerable<string> words, [EnumeratorCancellation] CancellationToken token)
         {
-            string queryTerms = string.Join(',', words);
+            string queryTerms = string.Join("','", words);
             if (queryTerms.Length == 0)
                 yield break;
 
-            string sql = $"select * from stardict where word in ({queryTerms})";
+            string sql = $"select * from stardict where word in ('{queryTerms}')";
 
 
             using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
