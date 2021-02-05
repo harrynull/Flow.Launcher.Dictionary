@@ -1,10 +1,11 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dictionary
@@ -50,18 +51,15 @@ namespace Dictionary
         public Iciba(string key) { token = key; }
 
         // Chinese to English. Internet access needed.
-        public List<string> Query(string word)
+        public async Task<List<string>> QueryAsync(string word, CancellationToken cancelToken)
         {
             List<string> ret = new List<string>();
             try
             {
-                WebRequest request = WebRequest.Create(
-                  String.Format("http://dict-co.iciba.com/api/dictionary.php?w={0}&key={1}&type=json", word, token));
-                WebResponse response = request.GetResponse();
-                Stream dataStream = response.GetResponseStream();
-                StreamReader reader = new StreamReader(dataStream);
-                //dynamic rsp = JsonConvert.DeserializeObject(reader.ReadToEnd());
-                var rsp = JsonConvert.DeserializeObject<ServerResponse>(reader.ReadToEnd());
+                var dataStream = await Main.Context.API.HttpGetStreamAsync($"http://dict-co.iciba.com/api/dictionary.php?w={word}&key={token}&type=json",
+                                                                            cancelToken).ConfigureAwait(false);
+                
+                var rsp = await JsonSerializer.DeserializeAsync<ServerResponse>(dataStream).ConfigureAwait(false);
 
                 if (rsp.symbols == null) return ret;
                 foreach (var symbol in rsp.symbols)

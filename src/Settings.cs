@@ -1,9 +1,9 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
 
 namespace Dictionary
@@ -17,9 +17,9 @@ namespace Dictionary
         public bool ShowEnglishDefinition = false;
         public string WordWebsite = "";
 
-        public void Save()
+        public async void Save()
         {
-            File.WriteAllText(ConfigFile, JsonConvert.SerializeObject(this));
+            await JsonSerializer.SerializeAsync(File.OpenWrite(ConfigFile), this);
         }
     }
 }
