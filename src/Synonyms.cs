@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dictionary
@@ -15,23 +16,26 @@ namespace Dictionary
         {
             ApiToken = apiToken;
         }
-        public List<string> Query(string vocab)
+        public async Task<IEnumerable<string>> QueryAsync(string vocab, CancellationToken token)
         {
             List<string> ret = new List<string>();
             try
             {
-                WebRequest request = WebRequest.Create(
-                  string.Format("http://words.bighugelabs.com/api/2/{0}/{1}/", ApiToken, vocab));
-                using WebResponse response = request.GetResponse();
-                Stream dataStream = response.GetResponseStream();
+                var dataStream = await Main.Context.API.HttpGetStreamAsync($"http://words.bighugelabs.com/api/2/{ApiToken}/{vocab}/", token).ConfigureAwait(false);
+
                 using StreamReader reader = new StreamReader(dataStream);
-                
-                while(!reader.EndOfStream)
+
+                return ParseResult(reader);
+
+                static IEnumerable<string> ParseResult(StreamReader reader)
                 {
-                    var line = reader.ReadLine();
-                    if (line == "") continue;
-                    var parts = line.Split('|');
-                    if (parts[1] == "syn") ret.Add(parts[2]);
+                    while (!reader.EndOfStream)
+                    {
+                        var line = reader.ReadLine();
+                        if (line == "") continue;
+                        var parts = line.Split('|');
+                        if (parts[1] == "syn") yield return parts[2];
+                    }
                 }
             }
             catch (Exception) { }

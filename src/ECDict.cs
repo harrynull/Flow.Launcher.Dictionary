@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Data;
 using System.Data.SQLite;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Dictionary
@@ -13,13 +15,13 @@ namespace Dictionary
         readonly SQLiteConnection conn;
         public ECDict(string filename)
         {
-            conn = new SQLiteConnection("Data Source=" + filename + ";Version=3;");
+            conn = new SQLiteConnection("Data Source=" + filename + ";Version=3;Read Only=True");
             conn.Open();
         }
 
         // This will only return exact match.
         // Return null if not found.
-        public Word Query(string word)
+        public async Task<Word> QueryAsync(string word, CancellationToken token)
         {
             if (word == "") return null;
 
@@ -28,7 +30,7 @@ namespace Dictionary
             Word ret = null;
 
             using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
-            using SQLiteDataReader reader = cmd.ExecuteReader();
+            using SQLiteDataReader reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SQLiteDataReader;
 
             if (reader.Read())
                 ret = new Word(reader);
@@ -36,25 +38,26 @@ namespace Dictionary
             return ret;
         }
 
-        public IEnumerable<Word> QueryRange(IEnumerable<SymSpell.SuggestItem> words)
+        public async IAsyncEnumerable<Word> QueryRange(IEnumerable<string> words, [EnumeratorCancellation] CancellationToken token)
         {
-            string queryTerms = string.Join(',', words.Select(w => $"'{w.term}'"));
+            string queryTerms = string.Join("','", words);
             if (queryTerms.Length == 0)
                 yield break;
 
-            string sql = $"select * from stardict where word in ({queryTerms})";
+            string sql = $"select * from stardict where word in ('{queryTerms}')";
 
 
             using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
-            using SQLiteDataReader reader = cmd.ExecuteReader();
+            using SQLiteDataReader reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SQLiteDataReader;
 
-            while (reader.Read())
+            while (await reader.ReadAsync(token).ConfigureAwait(false))
                 yield return new Word(reader);
+
 
         }
 
         // This will include exact match and words beginning with it
-        public IEnumerable<Word> QueryBeginningWith(string word, int limit = 20)
+        public async IAsyncEnumerable<Word> QueryBeginningWith(string word, [EnumeratorCancellation] CancellationToken token = default, int limit = 20)
         {
             if (word.Length == 0) yield break;
 
@@ -62,11 +65,16 @@ namespace Dictionary
                 "%' order by frq > 0 desc, frq asc limit " + limit;
 
             using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
-            using SQLiteDataReader reader = cmd.ExecuteReader();
-            while (reader.Read())
+            using SQLiteDataReader reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SQLiteDataReader;
+            while (await reader.ReadAsync(token).ConfigureAwait(false))
             {
                 yield return new Word(reader);
             }
+        }
+
+        internal Task QueryAsync(string queryWord)
+        {
+            throw new NotImplementedException();
         }
     }
 }
