@@ -28,6 +28,7 @@ namespace Dictionary
         //private SpeechSynthesizer synth;
 
         private string ecdictLocation = Environment.ExpandEnvironmentVariables(@"%LocalAppData%\Flow.Dictionary\ultimate.db");
+        private string configLocation = Environment.ExpandEnvironmentVariables(@"%AppData%\FlowLauncher\Settings\Plugins\Flow.Dictionary\config.json");
 
         // These two are only for jumping in MakeResultItem
         private string ActionWord;
@@ -44,15 +45,13 @@ namespace Dictionary
         {
             string CurrentPath = context.CurrentPluginMetadata.PluginDirectory;
 
-            if (!Directory.Exists(Path.Combine(CurrentPath, "config")))
-                Directory.CreateDirectory(Path.Combine(CurrentPath, "config"));
+            Directory.CreateDirectory(Path.GetDirectoryName(configLocation));
 
-            string ConfigFile = CurrentPath + "/config/config.json";
-            if (File.Exists(ConfigFile))
-                settings = await JsonSerializer.DeserializeAsync<Settings>(File.OpenRead(ConfigFile)).ConfigureAwait(false);
+            if (File.Exists(configLocation))
+                settings = await JsonSerializer.DeserializeAsync<Settings>(File.OpenRead(configLocation)).ConfigureAwait(false);
             else
                 settings = new Settings();
-            settings.ConfigFile = ConfigFile;
+            settings.ConfigFile = configLocation;
 
             dictDownloadManager = new DictDownloadManager(ecdictLocation, context);
             wordCorrection = new WordCorrection(CurrentPath + "/dicts/frequency_dictionary_en_82_765.txt", settings.MaxEditDistance);
