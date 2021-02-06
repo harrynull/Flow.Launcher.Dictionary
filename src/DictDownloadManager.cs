@@ -75,7 +75,7 @@ namespace Dictionary
             if (downloading)
             {
                 var progress = "";
-                if (downloadPercentage != 0) progress = $"{progress} %";
+                if (downloadPercentage != 0) progress = $"{downloadPercentage} %";
                 return new List<Result> { new Result() {
                     Title = $"Downloading dictionary database... {progress}",
                     SubTitle = "Press enter to refresh precentage.",
