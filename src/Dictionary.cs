@@ -22,7 +22,10 @@ namespace Dictionary
         private Iciba iciba;
         private PluginInitContext context;
         private Settings settings;
+        private DictDownloadManager dictDownloadManager;
         //private SpeechSynthesizer synth;
+
+        private string ecdictLocation = Environment.ExpandEnvironmentVariables(@"%LocalAppData%\Flow.Dictionary\ultimate.db");
 
         // These two are only for jumping in MakeResultItem
         private string ActionWord;
@@ -49,7 +52,7 @@ namespace Dictionary
                 settings = new Settings();
             settings.ConfigFile = ConfigFile;
 
-            ecdict = new ECDict(CurrentPath + "/dicts/ecdict.db");
+            dictDownloadManager = new DictDownloadManager(ecdictLocation, context);
             wordCorrection = new WordCorrection(CurrentPath + "/dicts/frequency_dictionary_en_82_765.txt", settings.MaxEditDistance);
             synonyms = new Synonyms(settings.BighugelabsToken);
             iciba = new Iciba(settings.ICIBAToken);
@@ -297,10 +300,15 @@ namespace Dictionary
 
         public List<Result> Query(Query query)
         {
+            if (dictDownloadManager.NeedsDownload())
+                return dictDownloadManager.HandleQuery(query);
+
             ActionWord = query.ActionKeyword;
             string queryWord = query.Search;
             if (queryWord == "") return new List<Result>();
             QueryWord = queryWord;
+
+            if (ecdict == null) ecdict = new ECDict(ecdictLocation);
 
             if (queryWord.Length < 2)
                 return FirstLevelQuery(query);
