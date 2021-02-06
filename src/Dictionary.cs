@@ -1,12 +1,14 @@
-﻿using Newtonsoft.Json;
-using System;
+﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 //using System.Speech.Synthesis;
 using System.Text;
+using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
@@ -14,13 +16,13 @@ using Flow.Launcher.Plugin;
 
 namespace Dictionary
 {
-    public class Main : IPlugin, ISettingProvider, IResultUpdated
+    public class Main : IAsyncPlugin, ISettingProvider, IResultUpdated
     {
         private ECDict ecdict;
         private WordCorrection wordCorrection;
         private Synonyms synonyms;
         private Iciba iciba;
-        private PluginInitContext context;
+        internal static PluginInitContext Context { get; private set; }
         private Settings settings;
         private DictDownloadManager dictDownloadManager;
         //private SpeechSynthesizer synth;
@@ -38,7 +40,7 @@ namespace Dictionary
             return new DictionarySettings(settings);
         }
 
-        public void Init(PluginInitContext context)
+        public async Task InitAsync(PluginInitContext context)
         {
             string CurrentPath = context.CurrentPluginMetadata.PluginDirectory;
 
@@ -47,7 +49,7 @@ namespace Dictionary
 
             string ConfigFile = CurrentPath + "/config/config.json";
             if (File.Exists(ConfigFile))
-                settings = JsonConvert.DeserializeObject<Settings>(File.ReadAllText(ConfigFile));
+                settings = await JsonSerializer.DeserializeAsync<Settings>(File.OpenRead(ConfigFile)).ConfigureAwait(false);
             else
                 settings = new Settings();
             settings.ConfigFile = ConfigFile;
@@ -56,7 +58,7 @@ namespace Dictionary
             wordCorrection = new WordCorrection(CurrentPath + "/dicts/frequency_dictionary_en_82_765.txt", settings.MaxEditDistance);
             synonyms = new Synonyms(settings.BighugelabsToken);
             iciba = new Iciba(settings.ICIBAToken);
-            this.context = context;
+            Context = context;
         }
 
         Result MakeResultItem(string title, string subtitle, string extraAction = null, string word = null)
@@ -72,7 +74,7 @@ namespace Dictionary
                 }
                 catch (ExternalException ee)
                 {
-                    context.API.ShowMsg("Copy failed, please try later", ee.Message);
+                    Context.API.ShowMsg("Copy failed, please try later", ee.Message);
                 }
                 return true;
             }
@@ -99,7 +101,7 @@ namespace Dictionary
                 {
                     if (CopyIfNeeded(e)) return true;
                     //if (ReadWordIfNeeded(e)) return false;
-                    context.API.ChangeQuery(ActionWord + " " + (word ?? QueryWord) + extraAction);
+                    Context.API.ChangeQuery(ActionWord + " " + (word ?? QueryWord) + extraAction);
                     return false;
                 };
             }
@@ -127,38 +129,70 @@ namespace Dictionary
                 (settings.ShowEnglishDefinition ? word.definition.Replace("\n", "; ") : word.translation.Replace("\n", "; ")),
                 "!", word.word);
 
+        private class WordEqualityComparer : IEqualityComparer<Result>
+        {
+            public static WordEqualityComparer instance = new WordEqualityComparer();
+
+            public bool Equals([AllowNull] Result x, [AllowNull] Result y)
+            {
+                if (x.Equals(y))
+                    return true;
+                else
+                    return x.Title == y.Title;
+
+            }
+
+            public int GetHashCode([DisallowNull] Result obj)
+            {
+                return obj.Title.GetHashCode();
+            }
+        }
+
         // First-level query.
         // English -> Chinese, supports fuzzy search.
-        private List<Result> FirstLevelQuery(Query query)
+        private async Task<List<Result>> FirstLevelQueryAsync(Query query, CancellationToken token)
         {
             string queryWord = query.Search;
-            IEnumerable<Word> results = Enumerable.Empty<Word>();
+            HashSet<Result> results = new HashSet<Result>(WordEqualityComparer.instance);
 
             // Pull fully match first.
-            Word fullMatch = ecdict.Query(query.Search);
+            Word fullMatch = await ecdict.QueryAsync(query.Search, token).ConfigureAwait(false);
             if (fullMatch != null)
-                results = results.Append(fullMatch);
+                results.Add(MakeWordResult(fullMatch));
+
+            token.ThrowIfCancellationRequested();
+            ResultsUpdated?.Invoke(this, new ResultUpdatedEventArgs { Results = results.ToList(), Query = query });
 
             // Then fuzzy search results. (since it's usually only a few)
             List<SymSpell.SuggestItem> suggestions = wordCorrection.Correct(queryWord);
+            token.ThrowIfCancellationRequested();
 
-            return results.Concat(ecdict.QueryRange(suggestions))
-                          .Concat(ecdict.QueryBeginningWith(queryWord))
-                          .Distinct()
-                          .Select(w => MakeWordResult(w))
-                          .ToList();
+            await foreach (var word in ecdict.QueryRange(suggestions.Select(x => x.term), token).Select(w => MakeWordResult(w)).ConfigureAwait(false))
+            {
+                results.Add(word);
+            }
+
+            token.ThrowIfCancellationRequested();
+            ResultsUpdated?.Invoke(this, new ResultUpdatedEventArgs { Results = results.ToList(), Query = query });
+
+            await foreach (var word in ecdict.QueryBeginningWith(queryWord, token).Select(w => MakeWordResult(w)).ConfigureAwait(false))
+            {
+                results.Add(word);
+            }
+
+            return results.ToList();
         }
 
         // Detailed information of a word.
         // English -> Phonetic, Translation, Definition, Exchanges, Synonym
         // Fuzzy search disabled.
-        private List<Result> DetailedQuery(Query query)
+        private async Task<List<Result>> DetailedQueryAsync(Query query, CancellationToken token)
         {
             string queryWord = query.Search[0..^1]; // Remove the !
 
             List<Result> results = new List<Result>();
 
-            var word = ecdict.Query(queryWord);
+            var word = await ecdict.QueryAsync(queryWord, token).ConfigureAwait(false);
 
             if (word.phonetic != "")
                 results.Add(MakeResultItem(word.phonetic, "Phonetic"));
@@ -169,13 +203,14 @@ namespace Dictionary
             if (word.exchange != "")
                 results.Add(MakeResultItem("Exchanges", word.exchange, "e"));
 
+            token.ThrowIfCancellationRequested();
             ResultsUpdated?.Invoke(this, new ResultUpdatedEventArgs
             {
                 Query = query,
                 Results = results
             });
 
-            var synonymsResult = string.Join("; ", synonyms.Query(word.word));
+            var synonymsResult = string.Join("; ", await synonyms.QueryAsync(word.word, token).ConfigureAwait(false));
             if (synonymsResult != "")
                 results.Add(MakeResultItem("Synonym", synonymsResult, "s"));
 
@@ -186,13 +221,13 @@ namespace Dictionary
         // Translations of a word.
         // English -> Translations
         // Fuzzy search disabled.
-        private List<Result> TranslationQuery(Query query)
+        private async Task<List<Result>> TranslationQueryAsync(Query query, CancellationToken token)
         {
             string queryWord = query.Search[0..^2]; // Get the word
 
             List<Result> results = new List<Result>();
 
-            var word = ecdict.Query(queryWord);
+            var word = await ecdict.QueryAsync(queryWord, token).ConfigureAwait(false);
 
             foreach (var translation in word.translation.Split('\n'))
             {
@@ -205,13 +240,13 @@ namespace Dictionary
         // Definitions of a word.
         // English -> Definitions
         // Fuzzy search disabled.
-        private List<Result> DefinitionQuery(Query query)
+        private async Task<List<Result>> DefinitionQueryAsync(Query query, CancellationToken token)
         {
             string queryWord = query.Search[0..^2]; // Get the word
 
             List<Result> results = new List<Result>();
 
-            var word = ecdict.Query(queryWord);
+            var word = await ecdict.QueryAsync(queryWord, token).ConfigureAwait(false);
 
             foreach (var definition in word.definition.Split('\n'))
             {
@@ -224,13 +259,13 @@ namespace Dictionary
         // Exchanges of a word.
         // English -> Exchanges
         // Fuzzy search disabled.
-        private List<Result> ExchangeQuery(Query query)
+        private async Task<List<Result>> ExchangeQueryAsync(Query query, CancellationToken token)
         {
             string queryWord = query.Search[0..^2]; // Get the word
 
             List<Result> results = new List<Result>();
 
-            var word = ecdict.Query(queryWord);
+            var word = await ecdict.QueryAsync(queryWord, token);
 
             foreach (var exchange in word.exchange.Split('/'))
             {
@@ -244,33 +279,28 @@ namespace Dictionary
         // English -> Synonyms
         // Fuzzy search disabled.
         // Internet access needed.
-        private List<Result> SynonymQuery(Query query)
+        private async Task<List<Result>> SynonymQueryAsync(Query query, CancellationToken token)
         {
             string queryWord = query.Search[0..^2]; // Get the word
 
             List<Result> results = new List<Result>();
 
-            var syns = synonyms.Query(queryWord);
+            var syns = await synonyms.QueryAsync(queryWord, token).ConfigureAwait(false);
 
-            foreach (var syn in syns)
-            {
-                results.Add(MakeWordResult(ecdict.Query(syn)));
-            }
-
-            return results;
+            return await ecdict.QueryRange(syns, token).Select(w => MakeWordResult(w)).ToListAsync(token);
         }
 
         // Chinese translation of a word.
         // English -> Synonyms
         // Fuzzy search disabled.
         // Internet access needed.
-        private List<Result> ChineseQuery(Query query)
+        private async Task<List<Result>> ChineseQueryAsync(Query query, CancellationToken token)
         {
             string queryWord = query.Search; // Get the word
 
             List<Result> results = new List<Result>();
 
-            var translations = iciba.Query(queryWord);
+            var translations = await iciba.QueryAsync(queryWord, token).ConfigureAwait(false);
 
             if (translations.Count == 0)
             {
@@ -298,10 +328,10 @@ namespace Dictionary
             return false;
         }
 
-        public List<Result> Query(Query query)
+        public async Task<List<Result>> QueryAsync(Query query, CancellationToken token)
         {
             if (dictDownloadManager.NeedsDownload())
-                return dictDownloadManager.HandleQuery(query);
+                return await dictDownloadManager.HandleQueryAsync(query).ConfigureAwait(false);
 
             ActionWord = query.ActionKeyword;
             string queryWord = query.Search;
@@ -311,18 +341,18 @@ namespace Dictionary
             if (ecdict == null) ecdict = new ECDict(ecdictLocation);
 
             if (queryWord.Length < 2)
-                return FirstLevelQuery(query);
+                return await FirstLevelQueryAsync(query, token).ConfigureAwait(false);
 
-            return queryWord[^2..] switch
+            return await (queryWord[^2..] switch
             {
-                "!d" => DefinitionQuery(query),
-                "!t" => TranslationQuery(query),
-                "!e" => ExchangeQuery(query),
-                "!s" => SynonymQuery(query),
-                _ when queryWord[^1] == '!' => DetailedQuery(query),
-                _ when IsChinese(queryWord) => ChineseQuery(query),
-                _ => FirstLevelQuery(query)
-            };
+                "!d" => DefinitionQueryAsync(query, token),
+                "!t" => TranslationQueryAsync(query, token),
+                "!e" => ExchangeQueryAsync(query, token),
+                "!s" => SynonymQueryAsync(query, token),
+                _ when queryWord[^1] == '!' => DetailedQueryAsync(query, token),
+                _ when IsChinese(queryWord) => ChineseQueryAsync(query, token),
+                _ => FirstLevelQueryAsync(query, token)
+            }).ConfigureAwait(false);
         }
     }
 }

@@ -70,7 +70,7 @@ namespace Dictionary
             downloading = false;
         }
 
-        public List<Result> HandleQuery(Query query)
+        public async Task<List<Result>> HandleQueryAsync(Query query)
         {
             if (downloading)
             {

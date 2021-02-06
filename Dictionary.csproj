@@ -36,11 +36,12 @@
     <Reference Include="System.Speech" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Flow.Launcher.Plugin" Version="1.2.0" />
+    <PackageReference Include="Flow.Launcher.Plugin" Version="1.4.0" />
     <PackageReference Include="symspell" Version="6.7.0" />
     <PackageReference Include="System.ComponentModel.Annotations" Version="4.7.0" />
     <PackageReference Include="System.Data.SQLite" Version="1.0.106.0" />
     <PackageReference Include="System.Data.SQLite.Core" Version="1.0.106.0" />
+    <PackageReference Include="System.Linq.Async" Version="5.0.0" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="src\Downloader.cs" />
