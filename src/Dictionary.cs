@@ -24,7 +24,11 @@ namespace Dictionary
         private Iciba iciba;
         internal static PluginInitContext Context { get; private set; }
         private Settings settings;
+        private DictDownloadManager dictDownloadManager;
         //private SpeechSynthesizer synth;
+
+        private string ecdictLocation = Environment.ExpandEnvironmentVariables(@"%LocalAppData%\Flow.Dictionary\ultimate.db");
+        private string configLocation = Environment.ExpandEnvironmentVariables(@"%AppData%\FlowLauncher\Settings\Plugins\Flow.Dictionary\config.json");
 
         // These two are only for jumping in MakeResultItem
         private string ActionWord;
@@ -41,17 +45,15 @@ namespace Dictionary
         {
             string CurrentPath = context.CurrentPluginMetadata.PluginDirectory;
 
-            if (!Directory.Exists(Path.Combine(CurrentPath, "config")))
-                Directory.CreateDirectory(Path.Combine(CurrentPath, "config"));
+            Directory.CreateDirectory(Path.GetDirectoryName(configLocation));
 
-            string ConfigFile = CurrentPath + "/config/config.json";
-            if (File.Exists(ConfigFile))
-                settings = await JsonSerializer.DeserializeAsync<Settings>(File.OpenRead(ConfigFile)).ConfigureAwait(false);
+            if (File.Exists(configLocation))
+                settings = await JsonSerializer.DeserializeAsync<Settings>(File.OpenRead(configLocation)).ConfigureAwait(false);
             else
                 settings = new Settings();
-            settings.ConfigFile = ConfigFile;
+            settings.ConfigFile = configLocation;
 
-            ecdict = new ECDict(CurrentPath + "/dicts/ecdict.db");
+            dictDownloadManager = new DictDownloadManager(ecdictLocation, context);
             wordCorrection = new WordCorrection(CurrentPath + "/dicts/frequency_dictionary_en_82_765.txt", settings.MaxEditDistance);
             synonyms = new Synonyms(settings.BighugelabsToken);
             iciba = new Iciba(settings.ICIBAToken);
@@ -327,10 +329,15 @@ namespace Dictionary
 
         public async Task<List<Result>> QueryAsync(Query query, CancellationToken token)
         {
+            if (dictDownloadManager.NeedsDownload())
+                return await dictDownloadManager.HandleQueryAsync(query).ConfigureAwait(false);
+
             ActionWord = query.ActionKeyword;
             string queryWord = query.Search;
             if (queryWord == "") return new List<Result>();
             QueryWord = queryWord;
+
+            if (ecdict == null) ecdict = new ECDict(ecdictLocation);
 
             if (queryWord.Length < 2)
                 return await FirstLevelQueryAsync(query, token).ConfigureAwait(false);

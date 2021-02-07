@@ -1,10 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Data;
 using System.Data.SQLite;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -13,10 +12,17 @@ namespace Dictionary
     class ECDict
     {
         readonly SQLiteConnection conn;
+        Regex stripWord = new Regex("[^a-zA-Z0-9]");
+
         public ECDict(string filename)
         {
             conn = new SQLiteConnection("Data Source=" + filename + ";Version=3;Read Only=True");
             conn.Open();
+        }
+
+        public string StripWord(string word)
+        {
+            return stripWord.Replace(word.Trim().ToLower(), "");
         }
 
         // This will only return exact match.
@@ -52,16 +58,15 @@ namespace Dictionary
 
             while (await reader.ReadAsync(token).ConfigureAwait(false))
                 yield return new Word(reader);
-
-
         }
 
         // This will include exact match and words beginning with it
         public async IAsyncEnumerable<Word> QueryBeginningWith(string word, [EnumeratorCancellation] CancellationToken token = default, int limit = 20)
         {
+            word = StripWord(word);
             if (word.Length == 0) yield break;
 
-            string sql = "select * from stardict where word like '" + word +
+            string sql = "select * from stardict where sw like '" + word +
                 "%' order by frq > 0 desc, frq asc limit " + limit;
 
             using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
@@ -70,11 +75,6 @@ namespace Dictionary
             {
                 yield return new Word(reader);
             }
-        }
-
-        internal Task QueryAsync(string queryWord)
-        {
-            throw new NotImplementedException();
         }
     }
 }

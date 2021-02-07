@@ -11,15 +11,15 @@ namespace Dictionary
     public class Settings
     {
         public string ConfigFile;
-        public string ICIBAToken = "BEBC0A981CB63ED5198597D732BD8956";
-        public string BighugelabsToken = "";
-        public int MaxEditDistance = 3;
-        public bool ShowEnglishDefinition = false;
-        public string WordWebsite = "";
+        public string ICIBAToken { get; set; } = "BEBC0A981CB63ED5198597D732BD8956";
+        public string BighugelabsToken { get; set; } = "";
+        public int MaxEditDistance { get; set; } = 3;
+        public bool ShowEnglishDefinition { get; set; } = false;
+        public string WordWebsite { get; set; } = "";
 
-        public async void Save()
+        public void Save()
         {
-            await JsonSerializer.SerializeAsync(File.OpenWrite(ConfigFile), this);
+            File.WriteAllText(ConfigFile, JsonSerializer.Serialize(this));
         }
     }
 }
