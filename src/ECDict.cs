@@ -52,7 +52,6 @@ namespace Dictionary
 
             string sql = $"select * from stardict where word in ('{queryTerms}')";
 
-
             using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
             using SQLiteDataReader reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SQLiteDataReader;
 

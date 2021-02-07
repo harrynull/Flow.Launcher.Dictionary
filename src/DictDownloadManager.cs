@@ -13,12 +13,10 @@ namespace Dictionary
         private string dictPath;
         private bool downloading = false;
         private int downloadPercentage = 0;
-        private PluginInitContext context;
 
-        public DictDownloadManager(string dictPath, PluginInitContext context)
+        public DictDownloadManager(string dictPath)
         {
             this.dictPath = dictPath;
-            this.context = context;
         }
 
         private async Task<bool> CheckForGoogleConnection()
@@ -81,7 +79,7 @@ namespace Dictionary
                     SubTitle = "Press enter to refresh precentage.",
                     IcoPath = "Images\\plugin.png",
                     Action = (e) => {
-                        context.API.ChangeQuery("d downloading" + new string('.',new Random().Next(0,10)));
+                        Main.Context.API.ChangeQuery("d downloading" + new string('.',new Random().Next(0,10)));
                         return false;
                     }
                 }};
@@ -95,7 +93,7 @@ namespace Dictionary
                     Action = (e) =>
                     {
                         if(!downloading) PerformDownload();
-                        context.API.ChangeQuery("d downloading");
+                        Main.Context.API.ChangeQuery("d downloading");
                         return false;
                     }
                 }};

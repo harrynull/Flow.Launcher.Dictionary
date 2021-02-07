@@ -53,7 +53,7 @@ namespace Dictionary
                 settings = new Settings();
             settings.ConfigFile = configLocation;
 
-            dictDownloadManager = new DictDownloadManager(ecdictLocation, context);
+            dictDownloadManager = new DictDownloadManager(ecdictLocation);
             wordCorrection = new WordCorrection(CurrentPath + "/dicts/frequency_dictionary_en_82_765.txt", settings.MaxEditDistance);
             synonyms = new Synonyms(settings.BighugelabsToken);
             iciba = new Iciba(settings.ICIBAToken);

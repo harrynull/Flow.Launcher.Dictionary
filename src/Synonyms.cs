@@ -22,11 +22,9 @@ namespace Dictionary
             try
             {
                 var dataStream = await Main.Context.API.HttpGetStreamAsync($"http://words.bighugelabs.com/api/2/{ApiToken}/{vocab}/", token).ConfigureAwait(false);
-
-                using StreamReader reader = new StreamReader(dataStream);
-
-                return ParseResult(reader);
-
+                
+                return ParseResult(new StreamReader(dataStream));
+                
                 static IEnumerable<string> ParseResult(StreamReader reader)
                 {
                     while (!reader.EndOfStream)
@@ -34,11 +32,14 @@ namespace Dictionary
                         var line = reader.ReadLine();
                         if (line == "") continue;
                         var parts = line.Split('|');
+                        if (parts.Length <= 2) continue;
                         if (parts[1] == "syn") yield return parts[2];
                     }
+                    reader.Close();
+                    reader = null;
                 }
             }
-            catch (Exception) { }
+            catch { }
             return ret;
         }
     }
