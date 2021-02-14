@@ -4,7 +4,7 @@ This port is intended to be used for [Flow Launcher](https://github.com/Flow-Lau
 
 To use this plugin:
 
-From Flow Launcher, type `pm install woxdictionary`
+From Flow Launcher, type `pm install dictionary`
 
 Changes contained in this port:
 
