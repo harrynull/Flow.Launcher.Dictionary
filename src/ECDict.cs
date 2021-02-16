@@ -46,11 +46,11 @@ namespace Dictionary
 
         public async IAsyncEnumerable<Word> QueryRange(IEnumerable<string> words, [EnumeratorCancellation] CancellationToken token)
         {
-            string queryTerms = string.Join("\",\"", words.Select(w => w.Replace("'", "''")));
+            string queryTerms = string.Join("','", words.Select(w => w.Replace("'", "''")));
             if (queryTerms.Length == 0)
                 yield break;
 
-            string sql = $"select * from stardict where word in (\"{queryTerms}\")";
+            string sql = $"select * from stardict where word in ('{queryTerms}')";
 
             using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
             using SQLiteDataReader reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SQLiteDataReader;
@@ -65,8 +65,8 @@ namespace Dictionary
             word = StripWord(word);
             if (word.Length == 0) yield break;
 
-            string sql = "select * from stardict where sw like \"" + word +
-                "%\" order by frq > 0 desc, frq asc limit " + limit;
+            string sql = "select * from stardict where sw like '" + word +
+                "%' order by frq > 0 desc, frq asc limit " + limit;
 
             using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
             using SQLiteDataReader reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SQLiteDataReader;
