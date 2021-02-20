@@ -30,7 +30,7 @@ namespace Dictionary
         {
             if (word == "") return null;
 
-            string sql = $"select * from stardict where word = '{word}'";
+            string sql = $"select * from stardict where word = '{word.Replace("'", "''")}'";
 
             Word ret = null;
             using var conn = new SQLiteConnection(connString);
@@ -46,7 +46,7 @@ namespace Dictionary
 
         public async IAsyncEnumerable<Word> QueryRange(IEnumerable<string> words, [EnumeratorCancellation] CancellationToken token)
         {
-            string queryTerms = string.Join("','", words);
+            string queryTerms = string.Join("','", words.Select(w => w.Replace("'", "''")));
             if (queryTerms.Length == 0)
                 yield break;
 
