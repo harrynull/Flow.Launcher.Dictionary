@@ -11,13 +11,12 @@ namespace Dictionary
 {
     class ECDict
     {
-        readonly SQLiteConnection conn;
+        readonly string connString;
         Regex stripWord = new Regex("[^a-zA-Z0-9]");
 
         public ECDict(string filename)
         {
-            conn = new SQLiteConnection("Data Source=" + filename + ";Version=3;Read Only=True");
-            conn.Open();
+            connString = "Data Source=" + filename + ";Version=3;Read Only=True;Pooling=true;";
         }
 
         public string StripWord(string word)
@@ -34,7 +33,8 @@ namespace Dictionary
             string sql = $"select * from stardict where word = '{word.Replace("'", "''")}'";
 
             Word ret = null;
-
+            using var conn = new SQLiteConnection(connString);
+            await conn.OpenAsync(token);
             using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
             using SQLiteDataReader reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SQLiteDataReader;
 
@@ -52,6 +52,8 @@ namespace Dictionary
 
             string sql = $"select * from stardict where word in ('{queryTerms}')";
 
+            using var conn = new SQLiteConnection(connString);
+            await conn.OpenAsync(token);
             using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
             using SQLiteDataReader reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SQLiteDataReader;
 
@@ -68,6 +70,8 @@ namespace Dictionary
             string sql = "select * from stardict where sw like '" + word +
                 "%' order by frq > 0 desc, frq asc limit " + limit;
 
+            using var conn = new SQLiteConnection(connString);
+            await conn.OpenAsync(token);
             using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
             using SQLiteDataReader reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SQLiteDataReader;
             while (await reader.ReadAsync(token).ConfigureAwait(false))
