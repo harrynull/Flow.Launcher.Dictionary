@@ -27,7 +27,6 @@ jobs:
         run: |
           dotnet publish 'Dictionary.csproj' --framework netcoreapp3.1  -c Release -o "Dictionary"
           7z a -tzip "Dictionary.zip" "Dictionary/*"
-          rm -r "Runner"
       - name: Publish
         uses: softprops/action-gh-release@v1
         with:
