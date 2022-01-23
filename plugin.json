@@ -4,7 +4,7 @@
     "Name":"Dictionary",
     "Description":"English dictionary, word correction and synonym.",
     "Author":"Harry Yu",
-    "Version":"2.2.2",
+    "Version":"2.2.3",
     "Language":"csharp",
     "Website":"https://github.com/harrynull/WoxDictionary",
     "IcoPath":"Images\\plugin.png",
