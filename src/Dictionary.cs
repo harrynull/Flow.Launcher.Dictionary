@@ -16,7 +16,7 @@ using Flow.Launcher.Plugin;
 
 namespace Dictionary
 {
-    public class Main : IAsyncPlugin, ISettingProvider, IResultUpdated
+    public class Main : IAsyncPlugin, ISettingProvider, IResultUpdated, ISavable
     {
         private ECDict ecdict;
         private WordCorrection wordCorrection;
@@ -48,16 +48,20 @@ namespace Dictionary
             Directory.CreateDirectory(Path.GetDirectoryName(configLocation));
 
             if (File.Exists(configLocation))
-                settings = await JsonSerializer.DeserializeAsync<Settings>(File.OpenRead(configLocation)).ConfigureAwait(false);
+            {
+                await using var fileStream = File.OpenRead(configLocation);
+                settings = await JsonSerializer.DeserializeAsync<Settings>(fileStream).ConfigureAwait(false);
+            }
             else
                 settings = new Settings();
-            settings.ConfigFile = configLocation;
+            settings!.ConfigFile = configLocation;
 
             dictDownloadManager = new DictDownloadManager(ecdictLocation);
             wordCorrection = new WordCorrection(CurrentPath + "/dicts/frequency_dictionary_en_82_765.txt", settings.MaxEditDistance);
             synonyms = new Synonyms(settings.BighugelabsToken);
             iciba = new Iciba(settings.ICIBAToken);
             Context = context;
+            WebsterAudio.api = context.API;
         }
 
         Result MakeResultItem(string title, string subtitle, string extraAction = null, string word = null)
@@ -77,21 +81,14 @@ namespace Dictionary
                 }
                 return true;
             }
-            /*
-             Todo: System.Speech.Synthesis is not supported in .Net Core, need to find alternative. 
-            https://github.com/dotnet/runtime/issues/30991
+
             bool ReadWordIfNeeded(ActionContext e)
             {
                 if (!e.SpecialKeyState.CtrlPressed) return false;
-                if (synth == null)
-                {
-                    synth = new SpeechSynthesizer();
-                    synth.SetOutputToDefaultAudioDevice();
-                }
-                synth.SpeakAsync(getWord());
+                _ = WebsterAudio.Play(getWord(), settings.MerriamWebsterKey);
                 return true;
             }
-            */
+
 
             Func<ActionContext, bool> ActionFunc;
             if (extraAction != null)
@@ -99,7 +96,7 @@ namespace Dictionary
                 ActionFunc = e =>
                 {
                     if (CopyIfNeeded(e)) return true;
-                    //if (ReadWordIfNeeded(e)) return false;
+                    if (ReadWordIfNeeded(e)) return false;
                     Context.API.ChangeQuery(ActionWord + " " + (word ?? QueryWord) + extraAction);
                     return false;
                 };
@@ -352,6 +349,10 @@ namespace Dictionary
                 _ when IsChinese(queryWord) => ChineseQueryAsync(query, token),
                 _ => FirstLevelQueryAsync(query, token)
             }).ConfigureAwait(false);
+        }
+        public void Save()
+        {
+            settings.Save();
         }
     }
 }

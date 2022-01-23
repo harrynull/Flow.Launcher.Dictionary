@@ -12,9 +12,12 @@ namespace Dictionary
     {
         public string ConfigFile;
         public string ICIBAToken { get; set; } = "BEBC0A981CB63ED5198597D732BD8956";
+
+        public string MerriamWebsterKey { get; set; } = "";
+
         public string BighugelabsToken { get; set; } = "";
         public int MaxEditDistance { get; set; } = 3;
-        public bool ShowEnglishDefinition { get; set; } = false;
+        public bool ShowEnglishDefinition { get; set; }
         public string WordWebsite { get; set; } = "";
 
         public void Save()
