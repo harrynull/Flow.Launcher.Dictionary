@@ -1,16 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Data.SQLite;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Data.Sqlite;
+using System;
 
 namespace Dictionary
 {
     class Word : IEquatable<Word>
     {
         public string word, translation, exchange, phonetic, definition;
-        public Word(SQLiteDataReader reader)
+        public Word(SqliteDataReader reader)
         {
             word = reader["word"].ToString();
             translation = reader["translation"].ToString();
@@ -21,7 +17,7 @@ namespace Dictionary
 
         public bool Equals(Word obj)
         {
-            return word == obj.word;
+            return obj != null && word == obj.word;
         }
 
         public override int GetHashCode()

@@ -41,7 +41,6 @@
 		<PackageReference Include="Microsoft.Data.Sqlite" Version="6.0.1" />
 		<PackageReference Include="symspell" Version="6.7.1" />
 		<PackageReference Include="System.ComponentModel.Annotations" Version="5.0.0" />
-		<PackageReference Include="System.Data.SQLite" Version="1.0.115" />
 		<PackageReference Include="System.Linq.Async" Version="5.1.0" />
 		<PackageReference Include="NAudio" Version="2.0.1" />
 	</ItemGroup>
