@@ -32,7 +32,7 @@
         </TextBlock>
         <TextBlock Grid.Row="2" Margin="0,16,0,6"
                    Text="MerriamWebsterKey" />
-        <TextBox Grid.Row="2" Text="{Binding MerriamWebsterKey}" Margin="120,10,0,9" Width="262" HorizontalAlignment="Left"/>
+        <TextBox Grid.Row="2" Text="{Binding MerriamWebsterKey}" Margin="120,10,0," Width="262" HorizontalAlignment="Left"/>
         <TextBlock Grid.Row="2" Margin="390,10,0,28" Grid.RowSpan="2">
             <Hyperlink RequestNavigate="Hyperlink_RequestNavigate"
                        NavigateUri="https://dictionaryapi.com/">
