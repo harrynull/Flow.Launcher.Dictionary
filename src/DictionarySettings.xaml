@@ -30,27 +30,18 @@
                 Get one
             </Hyperlink>
         </TextBlock>
-        <TextBlock Grid.Row="2" Margin="0,16,0,6"
-                   Text="MerriamWebsterKey" />
-        <TextBox Grid.Row="2" Text="{Binding MerriamWebsterKey}" Margin="120,10,0," Width="262" HorizontalAlignment="Left"/>
-        <TextBlock Grid.Row="2" Margin="390,10,0,28" Grid.RowSpan="2">
-            <Hyperlink RequestNavigate="Hyperlink_RequestNavigate"
-                       NavigateUri="https://dictionaryapi.com/">
-                Get one
-            </Hyperlink>
-        </TextBlock>
-        <Label Grid.Row="3" Margin="0,15,0,15" Content="Max edit distance for spelling correction" Grid.RowSpan="2"></Label>
-        <TextBox Grid.Row="3" Text="{Binding MaxEditDistance}" Margin="260,10,0,10" HorizontalAlignment="Left"
+        <Label Grid.Row="2" Margin="0,15,0,15" Content="Max edit distance for spelling correction" Grid.RowSpan="2"></Label>
+        <TextBox Grid.Row="2" Text="{Binding MaxEditDistance}" Margin="260,10,0,10" HorizontalAlignment="Left"
                  Width="46" />
-        <CheckBox Grid.Row="4" IsChecked="{Binding ShowEnglishDefinition}" x:Name="EnglishDefinition" Margin="0,0,0,31"
+        <CheckBox Grid.Row="3" IsChecked="{Binding ShowEnglishDefinition}" x:Name="EnglishDefinition" Margin="0,0,0,31"
                   Grid.RowSpan="2">
             Show English definition instead of Chinese translation
         </CheckBox>
-        <Label Grid.Row="5" Content="Jump to website when you enter any result" Margin="0,11,0,26" Grid.RowSpan="2"></Label>
-        <TextBox Grid.Row="5" Text="{Binding WordWebsite}" Margin="0,31,0,0" HorizontalAlignment="Left" Width="400"
+        <Label Grid.Row="4" Content="Jump to website when you enter any result" Margin="0,11,0,26" Grid.RowSpan="2"></Label>
+        <TextBox Grid.Row="4" Text="{Binding WordWebsite}" Margin="0,31,0,0" HorizontalAlignment="Left" Width="400"
                  Grid.RowSpan="2" />
 
-        <Label Grid.Row="6" Content="You need to restart Flow Launcher to apply the changes." FontWeight="Bold"
+        <Label Grid.Row="5" Content="You need to restart Flow Launcher to apply the changes." FontWeight="Bold"
                Margin="0,45,0,-26">
         </Label>
 
