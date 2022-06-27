@@ -330,6 +330,9 @@ namespace Dictionary
 
             ecdict ??= new ECDict(ecdictLocation);
 
+            if (IsChinese(queryWord))
+                return await ChineseQueryAsync(query, token);
+            
             if (queryWord.Length < 2)
                 return await FirstLevelQueryAsync(query, token).ConfigureAwait(false);
 
@@ -340,7 +343,6 @@ namespace Dictionary
                 "!e" => ExchangeQueryAsync(query, token),
                 "!s" => SynonymQueryAsync(query, token),
                 _ when queryWord[^1] == '!' => DetailedQueryAsync(query, token),
-                _ when IsChinese(queryWord) => ChineseQueryAsync(query, token),
                 _ => FirstLevelQueryAsync(query, token)
             }).ConfigureAwait(false);
         }
