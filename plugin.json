@@ -4,7 +4,7 @@
     "Name":"Dictionary",
     "Description":"English dictionary, word correction and synonym.",
     "Author":"Harry Yu",
-    "Version":"2.2.4",
+    "Version":"2.3.0",
     "Language":"csharp",
     "Website":"https://github.com/harrynull/Flow.Launcher.Dictionary",
     "IcoPath":"Images\\plugin.png",
