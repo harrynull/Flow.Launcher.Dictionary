@@ -6,7 +6,6 @@ using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 //using System.Speech.Synthesis;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -16,7 +15,7 @@ using Flow.Launcher.Plugin;
 
 namespace Dictionary
 {
-    public class Main : IAsyncPlugin, ISettingProvider, IResultUpdated
+    public class Main : IAsyncPlugin, ISettingProvider, IResultUpdated, ISavable
     {
         private ECDict ecdict;
         private WordCorrection wordCorrection;
@@ -43,33 +42,37 @@ namespace Dictionary
 
         public async Task InitAsync(PluginInitContext context)
         {
-            string CurrentPath = context.CurrentPluginMetadata.PluginDirectory;
+            var CurrentPath = context.CurrentPluginMetadata.PluginDirectory;
 
             Directory.CreateDirectory(Path.GetDirectoryName(configLocation));
 
             if (File.Exists(configLocation))
-                settings = await JsonSerializer.DeserializeAsync<Settings>(File.OpenRead(configLocation)).ConfigureAwait(false);
+            {
+                await using var fileStream = File.OpenRead(configLocation);
+                settings = await JsonSerializer.DeserializeAsync<Settings>(fileStream).ConfigureAwait(false);
+            }
             else
                 settings = new Settings();
-            settings.ConfigFile = configLocation;
+            settings!.ConfigFile = configLocation;
 
             dictDownloadManager = new DictDownloadManager(ecdictLocation);
             wordCorrection = new WordCorrection(CurrentPath + "/dicts/frequency_dictionary_en_82_765.txt", settings.MaxEditDistance);
             synonyms = new Synonyms(settings.BighugelabsToken);
             iciba = new Iciba(settings.ICIBAToken);
             Context = context;
+            WebsterAudio.api = context.API;
         }
 
         Result MakeResultItem(string title, string subtitle, string extraAction = null, string word = null)
         {
-            string getWord() { return (word ?? QueryWord).Replace("!", ""); }
+            string GetWord() { return (word ?? QueryWord).Replace("!", ""); }
             // Return true if the user tries to copy (regradless of the result)
             bool CopyIfNeeded(ActionContext e)
             {
                 if (!e.SpecialKeyState.AltPressed) return false;
                 try
                 {
-                    Clipboard.SetDataObject(getWord());
+                    Clipboard.SetDataObject(GetWord());
                 }
                 catch (ExternalException ee)
                 {
@@ -77,21 +80,14 @@ namespace Dictionary
                 }
                 return true;
             }
-            /*
-             Todo: System.Speech.Synthesis is not supported in .Net Core, need to find alternative. 
-            https://github.com/dotnet/runtime/issues/30991
+
             bool ReadWordIfNeeded(ActionContext e)
             {
                 if (!e.SpecialKeyState.CtrlPressed) return false;
-                if (synth == null)
-                {
-                    synth = new SpeechSynthesizer();
-                    synth.SetOutputToDefaultAudioDevice();
-                }
-                synth.SpeakAsync(getWord());
+                _ = WebsterAudio.Play(GetWord(), settings.MerriamWebsterKey);
                 return true;
             }
-            */
+
 
             Func<ActionContext, bool> ActionFunc;
             if (extraAction != null)
@@ -99,7 +95,7 @@ namespace Dictionary
                 ActionFunc = e =>
                 {
                     if (CopyIfNeeded(e)) return true;
-                    //if (ReadWordIfNeeded(e)) return false;
+                    if (ReadWordIfNeeded(e)) return false;
                     Context.API.ChangeQuery(ActionWord + " " + (word ?? QueryWord) + extraAction);
                     return false;
                 };
@@ -110,7 +106,7 @@ namespace Dictionary
                 {
                     if (CopyIfNeeded(e)) return true;
                     //if(ReadWordIfNeeded(e)) return false;
-                    if (settings.WordWebsite != "") System.Diagnostics.Process.Start(string.Format(settings.WordWebsite, getWord()));
+                    if (settings.WordWebsite != "") System.Diagnostics.Process.Start(string.Format(settings.WordWebsite, GetWord()));
                     return true;
                 };
             }
@@ -136,8 +132,8 @@ namespace Dictionary
             {
                 if (x.Equals(y))
                     return true;
-                else
-                    return x.Title == y.Title;
+                
+                return x.Title == y.Title;
 
             }
 
@@ -151,11 +147,11 @@ namespace Dictionary
         // English -> Chinese, supports fuzzy search.
         private async Task<List<Result>> FirstLevelQueryAsync(Query query, CancellationToken token)
         {
-            string queryWord = query.Search;
-            HashSet<Result> results = new HashSet<Result>(WordEqualityComparer.instance);
+            var queryWord = query.Search;
+            var results = new HashSet<Result>(WordEqualityComparer.instance);
 
             // Pull fully match first.
-            Word fullMatch = await ecdict.QueryAsync(query.Search, token).ConfigureAwait(false);
+            var fullMatch = ecdict.Query(query.Search);
             if (fullMatch != null)
                 results.Add(MakeWordResult(fullMatch));
 
@@ -163,10 +159,10 @@ namespace Dictionary
             ResultsUpdated?.Invoke(this, new ResultUpdatedEventArgs { Results = results.ToList(), Query = query });
 
             // Then fuzzy search results. (since it's usually only a few)
-            List<SymSpell.SuggestItem> suggestions = wordCorrection.Correct(queryWord);
+            var suggestions = wordCorrection.Correct(queryWord);
             token.ThrowIfCancellationRequested();
 
-            await foreach (var word in ecdict.QueryRange(suggestions.Select(x => x.term), token).Select(w => MakeWordResult(w)).ConfigureAwait(false))
+            await foreach (var word in ecdict.QueryRange(suggestions.Select(x => x.term), token).Select(MakeWordResult).ConfigureAwait(false))
             {
                 results.Add(word);
             }
@@ -174,7 +170,7 @@ namespace Dictionary
             token.ThrowIfCancellationRequested();
             ResultsUpdated?.Invoke(this, new ResultUpdatedEventArgs { Results = results.ToList(), Query = query });
 
-            await foreach (var word in ecdict.QueryBeginningWith(queryWord, token).Select(w => MakeWordResult(w)).ConfigureAwait(false))
+            foreach (var word in ecdict.QueryBeginningWith(queryWord).Select(MakeWordResult))
             {
                 results.Add(word);
             }
@@ -187,11 +183,11 @@ namespace Dictionary
         // Fuzzy search disabled.
         private async Task<List<Result>> DetailedQueryAsync(Query query, CancellationToken token)
         {
-            string queryWord = query.Search[0..^1]; // Remove the !
+            var queryWord = query.Search[0..^1]; // Remove the !
 
-            List<Result> results = new List<Result>();
+            var results = new List<Result>();
 
-            var word = await ecdict.QueryAsync(queryWord, token).ConfigureAwait(false);
+            var word = ecdict.Query(queryWord);
 
             if (word.phonetic != "")
                 results.Add(MakeResultItem(word.phonetic, "Phonetic"));
@@ -222,11 +218,11 @@ namespace Dictionary
         // Fuzzy search disabled.
         private async Task<List<Result>> TranslationQueryAsync(Query query, CancellationToken token)
         {
-            string queryWord = query.Search[0..^2]; // Get the word
+            var queryWord = query.Search[0..^2]; // Get the word
 
-            List<Result> results = new List<Result>();
+            var results = new List<Result>();
 
-            var word = await ecdict.QueryAsync(queryWord, token).ConfigureAwait(false);
+            var word = ecdict.Query(queryWord);
 
             foreach (var translation in word.translation.Split('\n'))
             {
@@ -241,11 +237,11 @@ namespace Dictionary
         // Fuzzy search disabled.
         private async Task<List<Result>> DefinitionQueryAsync(Query query, CancellationToken token)
         {
-            string queryWord = query.Search[0..^2]; // Get the word
+            var queryWord = query.Search[0..^2]; // Get the word
 
-            List<Result> results = new List<Result>();
+            var results = new List<Result>();
 
-            var word = await ecdict.QueryAsync(queryWord, token).ConfigureAwait(false);
+            var word = ecdict.Query(queryWord);
 
             foreach (var definition in word.definition.Split('\n'))
             {
@@ -260,18 +256,13 @@ namespace Dictionary
         // Fuzzy search disabled.
         private async Task<List<Result>> ExchangeQueryAsync(Query query, CancellationToken token)
         {
-            string queryWord = query.Search[0..^2]; // Get the word
+            var queryWord = query.Search[0..^2]; // Get the word
 
-            List<Result> results = new List<Result>();
+            var word = ecdict.Query(queryWord);
 
-            var word = await ecdict.QueryAsync(queryWord, token);
-
-            foreach (var exchange in word.exchange.Split('/'))
-            {
-                results.Add(MakeResultItem(exchange, "Exchanges"));
-            }
-
-            return results;
+            return word.exchange.Split('/')
+                .Select(exchange => MakeResultItem(exchange, "Exchanges"))
+                .ToList();
         }
 
         // Synonyms of a word.
@@ -280,13 +271,13 @@ namespace Dictionary
         // Internet access needed.
         private async Task<List<Result>> SynonymQueryAsync(Query query, CancellationToken token)
         {
-            string queryWord = query.Search[0..^2]; // Get the word
+            var queryWord = query.Search[0..^2]; // Get the word
 
-            List<Result> results = new List<Result>();
+            var results = new List<Result>();
 
             var syns = await synonyms.QueryAsync(queryWord, token).ConfigureAwait(false);
 
-            return await ecdict.QueryRange(syns, token).Select(w => MakeWordResult(w)).ToListAsync(token);
+            return await ecdict.QueryRange(syns, token).Select(MakeWordResult).ToListAsync(token);
         }
 
         // Chinese translation of a word.
@@ -295,9 +286,9 @@ namespace Dictionary
         // Internet access needed.
         private async Task<List<Result>> ChineseQueryAsync(Query query, CancellationToken token)
         {
-            string queryWord = query.Search; // Get the word
+            var queryWord = query.Search; // Get the word
 
-            List<Result> results = new List<Result>();
+            var results = new List<Result>();
 
             var translations = await iciba.QueryAsync(queryWord, token).ConfigureAwait(false);
 
@@ -318,9 +309,9 @@ namespace Dictionary
 
         private bool IsChinese(string cn)
         {
-            foreach (char c in cn)
+            foreach (var c in cn)
             {
-                UnicodeCategory cat = char.GetUnicodeCategory(c);
+                var cat = char.GetUnicodeCategory(c);
                 if (cat == UnicodeCategory.OtherLetter)
                     return true;
             }
@@ -333,12 +324,15 @@ namespace Dictionary
                 return await dictDownloadManager.HandleQueryAsync(query).ConfigureAwait(false);
 
             ActionWord = query.ActionKeyword;
-            string queryWord = query.Search;
+            var queryWord = query.Search;
             if (queryWord == "") return new List<Result>();
             QueryWord = queryWord;
 
-            if (ecdict == null) ecdict = new ECDict(ecdictLocation);
+            ecdict ??= new ECDict(ecdictLocation);
 
+            if (IsChinese(queryWord))
+                return await ChineseQueryAsync(query, token);
+            
             if (queryWord.Length < 2)
                 return await FirstLevelQueryAsync(query, token).ConfigureAwait(false);
 
@@ -349,9 +343,12 @@ namespace Dictionary
                 "!e" => ExchangeQueryAsync(query, token),
                 "!s" => SynonymQueryAsync(query, token),
                 _ when queryWord[^1] == '!' => DetailedQueryAsync(query, token),
-                _ when IsChinese(queryWord) => ChineseQueryAsync(query, token),
                 _ => FirstLevelQueryAsync(query, token)
             }).ConfigureAwait(false);
+        }
+        public void Save()
+        {
+            settings.Save();
         }
     }
 }
