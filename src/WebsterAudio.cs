@@ -35,7 +35,6 @@ namespace Dictionary
         {
             foreach (var pr in prs.EnumerateArray())
             {
-                pr.GetProperty("mw").GetString();
                 if (!pr.TryGetProperty("sound", out var sound))
                     continue;
 
