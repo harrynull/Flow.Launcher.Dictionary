@@ -32,13 +32,13 @@ namespace Dictionary
 
         // This will only return exact match.
         // Return null if not found.
-        public Word Query(string word)
+        public WordInformation? Query(string word)
         {
             if (word == "") return null;
 
             var sql = $"select * from stardict where word = \"{word.Replace("'", "''")}\"";
             
-            Word ret = null;
+            WordInformation? ret = null;
             using var conn = new SqliteConnection(connString);
             conn.Open();
             using var cmd = new SqliteCommand(sql, conn);
@@ -47,12 +47,12 @@ namespace Dictionary
             
             
             if (reader.Read())
-                ret = new Word(reader);
+                ret = new WordInformation(reader);
 
             return ret;
         }
 
-        public async IAsyncEnumerable<Word> QueryRange(IEnumerable<string> words, [EnumeratorCancellation] CancellationToken token)
+        public async IAsyncEnumerable<WordInformation> QueryRange(IEnumerable<string> words, [EnumeratorCancellation] CancellationToken token)
         {
             var queryTerms = string.Join("','", words.Select(w => w.Replace("'", "''")));
             if (queryTerms.Length == 0)
@@ -66,11 +66,11 @@ namespace Dictionary
             await using var reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SqliteDataReader;
 
             while (await reader.ReadAsync(token).ConfigureAwait(false))
-                yield return new Word(reader);
+                yield return new WordInformation(reader);
         }
 
         // This will include exact match and words beginning with it
-        public IEnumerable<Word> QueryBeginningWith(string word, int limit = 20)
+        public IEnumerable<WordInformation> QueryBeginningWith(string word, int limit = 20)
         {
             word = StripWord(word);
             if (word.Length == 0) yield break;
@@ -83,7 +83,7 @@ namespace Dictionary
             using var reader = cmd.ExecuteReader();
             while (reader.Read())
             {
-                yield return new Word(reader);
+                yield return new WordInformation(reader);
             }
         }
     }

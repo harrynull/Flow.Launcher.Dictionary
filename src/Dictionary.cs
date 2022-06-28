@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -8,32 +7,32 @@ using System.Runtime.InteropServices;
 //using System.Speech.Synthesis;
 using System.Text.Json;
 using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using Flow.Launcher.Plugin;
+using System.Threading.Tasks;
 
 namespace Dictionary
 {
     public class Main : IAsyncPlugin, ISettingProvider, IResultUpdated, ISavable
     {
-        private ECDict ecdict;
-        private WordCorrection wordCorrection;
-        private Synonyms synonyms;
-        private Iciba iciba;
-        internal static PluginInitContext Context { get; private set; }
-        private Settings settings;
-        private DictDownloadManager dictDownloadManager;
+        private ECDict ecdict = null!;
+        private WordCorrection wordCorrection = null!;
+        private Synonyms synonyms = null!;
+        private Iciba iciba = null!;
+        internal static PluginInitContext Context { get; private set; } = null!;
+        private Settings settings = null!;
+        private DictDownloadManager dictDownloadManager = null!;
         //private SpeechSynthesizer synth;
 
-        private string ecdictLocation = Environment.ExpandEnvironmentVariables(@"%LocalAppData%\Flow.Dictionary\ultimate.db");
-        private string configLocation = Environment.ExpandEnvironmentVariables(@"%AppData%\FlowLauncher\Settings\Plugins\Flow.Dictionary\config.json");
+        private readonly string ecdictLocation = Environment.ExpandEnvironmentVariables(@"%LocalAppData%\Flow.Dictionary\ultimate.db");
+        private readonly string configLocation = Environment.ExpandEnvironmentVariables(@"%AppData%\FlowLauncher\Settings\Plugins\Flow.Dictionary\config.json");
 
         // These two are only for jumping in MakeResultItem
-        private string ActionWord;
-        private string QueryWord;
+        private static string ActionWord => Context.CurrentPluginMetadata.ActionKeywords[0];
+        private string QueryWord { get; set; } = "";
 
-        public event ResultUpdatedEventHandler ResultsUpdated;
+        public event ResultUpdatedEventHandler? ResultsUpdated;
 
         public Control CreateSettingPanel()
         {
@@ -42,31 +41,34 @@ namespace Dictionary
 
         public async Task InitAsync(PluginInitContext context)
         {
-            var CurrentPath = context.CurrentPluginMetadata.PluginDirectory;
+            var currentPath = context.CurrentPluginMetadata.PluginDirectory ?? throw new ArgumentNullException("context.CurrentPluginMetadata.PluginDirectory");
 
-            Directory.CreateDirectory(Path.GetDirectoryName(configLocation));
+            Directory.CreateDirectory(Path.GetDirectoryName(configLocation)!);
+            
 
             if (File.Exists(configLocation))
             {
                 await using var fileStream = File.OpenRead(configLocation);
-                settings = await JsonSerializer.DeserializeAsync<Settings>(fileStream).ConfigureAwait(false);
+                settings = (await JsonSerializer.DeserializeAsync<Settings>(fileStream).ConfigureAwait(false))!;
             }
             else
                 settings = new Settings();
-            settings!.ConfigFile = configLocation;
+            settings.ConfigFile = configLocation;
 
+            ecdict = new ECDict(ecdictLocation);
             dictDownloadManager = new DictDownloadManager(ecdictLocation);
-            wordCorrection = new WordCorrection(CurrentPath + "/dicts/frequency_dictionary_en_82_765.txt", settings.MaxEditDistance);
+            wordCorrection = new WordCorrection(currentPath + "/dicts/frequency_dictionary_en_82_765.txt", settings.MaxEditDistance);
             synonyms = new Synonyms(settings.BighugelabsToken);
             iciba = new Iciba(settings.ICIBAToken);
             Context = context;
-            WebsterAudio.api = context.API;
+            WebsterAudio.Api = context.API;
         }
 
-        Result MakeResultItem(string title, string subtitle, string extraAction = null, string word = null)
+        private Result MakeResultItem(string title, string subtitle, string? extraAction = null, string? word = null)
         {
-            string GetWord() { return (word ?? QueryWord).Replace("!", ""); }
-            // Return true if the user tries to copy (regradless of the result)
+            string GetWord() => (word ?? QueryWord).Replace("!", "");
+
+            // Return true if the user tries to copy (regardless of the result)
             bool CopyIfNeeded(ActionContext e)
             {
                 if (!e.SpecialKeyState.AltPressed) return false;
@@ -89,10 +91,10 @@ namespace Dictionary
             }
 
 
-            Func<ActionContext, bool> ActionFunc;
+            Func<ActionContext, bool> actionFunc;
             if (extraAction != null)
             {
-                ActionFunc = e =>
+                actionFunc = e =>
                 {
                     if (CopyIfNeeded(e)) return true;
                     if (ReadWordIfNeeded(e)) return false;
@@ -102,7 +104,7 @@ namespace Dictionary
             }
             else
             {
-                ActionFunc = e =>
+                actionFunc = e =>
                 {
                     if (CopyIfNeeded(e)) return true;
                     //if(ReadWordIfNeeded(e)) return false;
@@ -110,34 +112,35 @@ namespace Dictionary
                     return true;
                 };
             }
-            return new Result()
+            return new Result
             {
                 Title = title,
                 SubTitle = subtitle,
                 IcoPath = "Images\\plugin.png",
-                Action = ActionFunc
+                Action = actionFunc
             };
         }
 
-        private Result MakeWordResult(Word word) =>
-            MakeResultItem(word.word, (word.phonetic != "" ? ("/" + word.phonetic + "/ ") : "") +
-                (settings.ShowEnglishDefinition ? word.definition.Replace("\n", "; ") : word.translation.Replace("\n", "; ")),
-                "!", word.word);
+        private Result MakeWordResult(WordInformation wordInformation) =>
+            MakeResultItem(wordInformation.Word, (wordInformation.Phonetic != "" ? ("/" + wordInformation.Phonetic + "/ ") : "") +
+                                      (settings.ShowEnglishDefinition ? wordInformation.Definition.Replace("\n", "; ") : wordInformation.Translation.Replace("\n", "; ")),
+                "!", wordInformation.Word);
 
         private class WordEqualityComparer : IEqualityComparer<Result>
         {
-            public static WordEqualityComparer instance = new WordEqualityComparer();
+            public static WordEqualityComparer Instance { get; }= new();
 
-            public bool Equals([AllowNull] Result x, [AllowNull] Result y)
+            public bool Equals(Result? x, Result? y)
             {
-                if (x.Equals(y))
+                if (x != null && x.Equals(y))
                     return true;
-                
-                return x.Title == y.Title;
+
+                return x?.Title ==
+                       y?.Title;
 
             }
 
-            public int GetHashCode([DisallowNull] Result obj)
+            public int GetHashCode(Result obj)
             {
                 return obj.Title.GetHashCode();
             }
@@ -145,10 +148,10 @@ namespace Dictionary
 
         // First-level query.
         // English -> Chinese, supports fuzzy search.
-        private async Task<List<Result>> FirstLevelQueryAsync(Query query, CancellationToken token)
+        private async ValueTask<List<Result>> FirstLevelQueryAsync(Query query, CancellationToken token)
         {
             var queryWord = query.Search;
-            var results = new HashSet<Result>(WordEqualityComparer.instance);
+            var results = new HashSet<Result>(WordEqualityComparer.Instance);
 
             // Pull fully match first.
             var fullMatch = ecdict.Query(query.Search);
@@ -156,7 +159,10 @@ namespace Dictionary
                 results.Add(MakeWordResult(fullMatch));
 
             token.ThrowIfCancellationRequested();
-            ResultsUpdated?.Invoke(this, new ResultUpdatedEventArgs { Results = results.ToList(), Query = query });
+            ResultsUpdated?.Invoke(this, new ResultUpdatedEventArgs
+            {
+                Results = results.ToList(), Query = query
+            });
 
             // Then fuzzy search results. (since it's usually only a few)
             var suggestions = wordCorrection.Correct(queryWord);
@@ -168,7 +174,10 @@ namespace Dictionary
             }
 
             token.ThrowIfCancellationRequested();
-            ResultsUpdated?.Invoke(this, new ResultUpdatedEventArgs { Results = results.ToList(), Query = query });
+            ResultsUpdated?.Invoke(this, new ResultUpdatedEventArgs
+            {
+                Results = results.ToList(), Query = query
+            });
 
             foreach (var word in ecdict.QueryBeginningWith(queryWord).Select(MakeWordResult))
             {
@@ -181,7 +190,7 @@ namespace Dictionary
         // Detailed information of a word.
         // English -> Phonetic, Translation, Definition, Exchanges, Synonym
         // Fuzzy search disabled.
-        private async Task<List<Result>> DetailedQueryAsync(Query query, CancellationToken token)
+        private async ValueTask<List<Result>> DetailedQueryAsync(Query query, CancellationToken token)
         {
             var queryWord = query.Search[0..^1]; // Remove the !
 
@@ -189,34 +198,40 @@ namespace Dictionary
 
             var word = ecdict.Query(queryWord);
 
-            if (word.phonetic != "")
-                results.Add(MakeResultItem(word.phonetic, "Phonetic"));
-            if (word.translation != "")
-                results.Add(MakeResultItem("Translation", word.translation.Replace("\n", "; "), "t"));
-            if (word.definition != "")
-                results.Add(MakeResultItem("Definition", word.definition.Replace("\n", "; "), "d"));
-            if (word.exchange != "")
-                results.Add(MakeResultItem("Exchanges", word.exchange, "e"));
+            if (word is null)
+            {
+                results.Add(MakeResultItem("No Results Found", queryWord));
+                return results;
+            }
+
+            if (!string.IsNullOrWhiteSpace(word.Phonetic))
+                results.Add(MakeResultItem(word.Phonetic, "Phonetic"));
+            if (!string.IsNullOrWhiteSpace(word.Translation))
+                results.Add(MakeResultItem("Translation", word.Translation.Replace("\n", "; "), "t"));
+            if (!string.IsNullOrWhiteSpace(word.Definition))
+                results.Add(MakeResultItem("Definition", word.Definition.Replace("\n", "; "), "d"));
+            if (!string.IsNullOrWhiteSpace(word.Exchange))
+                results.Add(MakeResultItem("Exchanges", word.Exchange, "e"));
 
             token.ThrowIfCancellationRequested();
             ResultsUpdated?.Invoke(this, new ResultUpdatedEventArgs
             {
-                Query = query,
-                Results = results
+                Query = query, Results = results
             });
 
-            var synonymsResult = string.Join("; ", await synonyms.QueryAsync(word.word, token).ConfigureAwait(false));
+            var synonymsResult = string.Join("; ", await synonyms.QueryAsync(word.Word, token).ConfigureAwait(false));
             if (synonymsResult != "")
                 results.Add(MakeResultItem("Synonym", synonymsResult, "s"));
 
 
             return results;
         }
+       
 
         // Translations of a word.
         // English -> Translations
         // Fuzzy search disabled.
-        private async Task<List<Result>> TranslationQueryAsync(Query query, CancellationToken token)
+        private ValueTask<List<Result>> TranslationQueryAsync(Query query)
         {
             var queryWord = query.Search[0..^2]; // Get the word
 
@@ -224,56 +239,71 @@ namespace Dictionary
 
             var word = ecdict.Query(queryWord);
 
-            foreach (var translation in word.translation.Split('\n'))
+            if (word is null)
+            {
+                results.Add(MakeResultItem("No Results Found", queryWord));
+                return ValueTask.FromResult(results);
+            }
+            
+            foreach (var translation in word.Translation.Split('\n'))
             {
                 results.Add(MakeResultItem(translation, "Translation"));
             }
 
-            return results;
+            return ValueTask.FromResult(results);
         }
 
         // Definitions of a word.
         // English -> Definitions
         // Fuzzy search disabled.
-        private async Task<List<Result>> DefinitionQueryAsync(Query query, CancellationToken token)
+        private ValueTask<List<Result>> DefinitionQueryAsync(Query query)
         {
             var queryWord = query.Search[0..^2]; // Get the word
 
             var results = new List<Result>();
 
             var word = ecdict.Query(queryWord);
+            
+            if (word is null)
+            {
+                results.Add(MakeResultItem("No Results Found", queryWord));
+                return ValueTask.FromResult(results);
+            }
 
-            foreach (var definition in word.definition.Split('\n'))
+            foreach (var definition in word.Definition.Split('\n'))
             {
                 results.Add(MakeResultItem(definition, "Definitions"));
             }
 
-            return results;
+            return ValueTask.FromResult(results);
         }
 
         // Exchanges of a word.
         // English -> Exchanges
         // Fuzzy search disabled.
-        private async Task<List<Result>> ExchangeQueryAsync(Query query, CancellationToken token)
+        private ValueTask<List<Result>> ExchangeQueryAsync(Query query)
         {
             var queryWord = query.Search[0..^2]; // Get the word
 
             var word = ecdict.Query(queryWord);
+            
+            if (word is null)
+            {
+                return ValueTask.FromResult(new List<Result> { MakeResultItem("No Results Found", queryWord) });
+            }
 
-            return word.exchange.Split('/')
+            return ValueTask.FromResult(word.Exchange.Split('/')
                 .Select(exchange => MakeResultItem(exchange, "Exchanges"))
-                .ToList();
+                .ToList());
         }
 
         // Synonyms of a word.
         // English -> Synonyms
         // Fuzzy search disabled.
         // Internet access needed.
-        private async Task<List<Result>> SynonymQueryAsync(Query query, CancellationToken token)
+        private async ValueTask<List<Result>> SynonymQueryAsync(Query query, CancellationToken token)
         {
-            var queryWord = query.Search[0..^2]; // Get the word
-
-            var results = new List<Result>();
+            var queryWord = query.Search[..^2]; // Get the word
 
             var syns = await synonyms.QueryAsync(queryWord, token).ConfigureAwait(false);
 
@@ -284,7 +314,7 @@ namespace Dictionary
         // English -> Synonyms
         // Fuzzy search disabled.
         // Internet access needed.
-        private async Task<List<Result>> ChineseQueryAsync(Query query, CancellationToken token)
+        private async ValueTask<List<Result>> ChineseQueryAsync(Query query, CancellationToken token)
         {
             var queryWord = query.Search; // Get the word
 
@@ -298,10 +328,7 @@ namespace Dictionary
             }
             else
             {
-                foreach (var translation in translations)
-                {
-                    results.Add(MakeResultItem(translation, queryWord, "!", translation));
-                }
+                results.AddRange(translations.Select(translation => MakeResultItem(translation, queryWord, "!", translation)));
             }
 
             return results;
@@ -323,28 +350,25 @@ namespace Dictionary
             if (dictDownloadManager.NeedsDownload())
                 return await dictDownloadManager.HandleQueryAsync(query).ConfigureAwait(false);
 
-            ActionWord = query.ActionKeyword;
             var queryWord = query.Search;
             if (queryWord == "") return new List<Result>();
             QueryWord = queryWord;
-
-            ecdict ??= new ECDict(ecdictLocation);
-
+            
             if (IsChinese(queryWord))
                 return await ChineseQueryAsync(query, token);
-            
+
             if (queryWord.Length < 2)
                 return await FirstLevelQueryAsync(query, token).ConfigureAwait(false);
 
             return await (queryWord[^2..] switch
             {
-                "!d" => DefinitionQueryAsync(query, token),
-                "!t" => TranslationQueryAsync(query, token),
-                "!e" => ExchangeQueryAsync(query, token),
+                "!d" => DefinitionQueryAsync(query),
+                "!t" => TranslationQueryAsync(query),
+                "!e" => ExchangeQueryAsync(query),
                 "!s" => SynonymQueryAsync(query, token),
                 _ when queryWord[^1] == '!' => DetailedQueryAsync(query, token),
                 _ => FirstLevelQueryAsync(query, token)
-            }).ConfigureAwait(false);
+            });
         }
         public void Save()
         {

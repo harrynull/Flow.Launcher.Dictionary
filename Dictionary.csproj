@@ -9,6 +9,7 @@
 		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
 		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
 		<PackageProjectUrl>https://github.com/harrynull/Flow.Launcher.Dictionary</PackageProjectUrl>
+		<Nullable>enable</Nullable>
 	</PropertyGroup>
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
 		<OutputPath>.\Output\Debug\Wox.Plugin.WoxDictionary</OutputPath>
