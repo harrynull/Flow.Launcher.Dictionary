@@ -1,5 +1,6 @@
 using Flow.Launcher.Plugin;
 using NAudio.Wave;
+using System;
 using System.Text.Json;
 using System.Threading.Tasks;
 
@@ -7,10 +8,15 @@ namespace Dictionary
 {
     public static class WebsterAudio
     {
-        public static IPublicAPI api { get; set; }
+        public static IPublicAPI? Api { get; set; }
 
         public static async Task Play(string word, string key)
         {
+            if (Api == null)
+            {
+                throw new ArgumentNullException(nameof(Api));
+            }
+            
             if (string.IsNullOrEmpty(word))
             {
                 return;
@@ -18,7 +24,7 @@ namespace Dictionary
 
             var url = $"https://dictionaryapi.com/api/v3/references/collegiate/json/{word}?key={key}";
 
-            var responseStream = await api.HttpGetStreamAsync(url);
+            var responseStream = await Api.HttpGetStreamAsync(url);
 
             using var result = await JsonDocument.ParseAsync(responseStream);
 
@@ -29,7 +35,6 @@ namespace Dictionary
         {
             foreach (var pr in prs.EnumerateArray())
             {
-                var pron = pr.GetProperty("mw").GetString();
                 if (!pr.TryGetProperty("sound", out var sound))
                     continue;
 
@@ -80,12 +85,12 @@ namespace Dictionary
 
         private static async Task PlayMp3Url(string url)
         {
-            using var mf = new MediaFoundationReader(url);
+            await using var mf = new MediaFoundationReader(url);
             using var player = new WaveOutEvent();
             player.Init(mf);
             player.Play();
-            TaskCompletionSource tcs = new TaskCompletionSource();
-            player.PlaybackStopped += (s, e) => tcs.SetResult();
+            var tcs = new TaskCompletionSource();
+            player.PlaybackStopped += (_, _) => tcs.SetResult();
             await tcs.Task;
         }
     }

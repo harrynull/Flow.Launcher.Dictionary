@@ -1,9 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -59,9 +55,9 @@ namespace Dictionary
                 var dataStream = await Main.Context.API.HttpGetStreamAsync($"http://dict-co.iciba.com/api/dictionary.php?w={word}&key={token}&type=json",
                                                                             cancelToken).ConfigureAwait(false);
                 
-                var rsp = await JsonSerializer.DeserializeAsync<ServerResponse>(dataStream).ConfigureAwait(false);
+                var rsp = await JsonSerializer.DeserializeAsync<ServerResponse>(dataStream, cancellationToken: cancelToken).ConfigureAwait(false);
 
-                if (rsp.symbols == null) return ret;
+                if (rsp?.symbols == null) return ret;
                 foreach (var symbol in rsp.symbols)
                 {
                     if (symbol.parts == null) continue;
