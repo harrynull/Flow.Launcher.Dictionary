@@ -38,7 +38,7 @@ namespace Dictionary
         {
             bool shouldUseMirror = !await CheckForGoogleConnection();
             if (shouldUseMirror)
-                return "https://nullptr_t.coding.net/p/ECDICT-sqlite/d/ECDICT-sqlite/git/raw/master/ecdict-ultimate-sqlite.zip";
+                return "https://hub.fastgit.org/skywind3000/ECDICT-ultimate/releases/download/1.0.0/ecdict-ultimate-sqlite.zip";
             else
                 return "https://github.com/skywind3000/ECDICT-ultimate/releases/download/1.0.0/ecdict-ultimate-sqlite.zip";
         }
