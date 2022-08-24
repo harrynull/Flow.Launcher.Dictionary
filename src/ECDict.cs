@@ -1,6 +1,6 @@
-﻿using System.Collections.Generic;
-using System.Data;
-using System.Data.SQLite;
+﻿using Microsoft.Data.Sqlite;
+using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Runtime.CompilerServices;
@@ -16,67 +16,74 @@ namespace Dictionary
 
         public ECDict(string filename)
         {
-            connString = "Data Source=" + filename + ";Version=3;Read Only=True;Pooling=true;";
+            connString = new SqliteConnectionStringBuilder()
+            {
+                DataSource = filename,
+                Mode = SqliteOpenMode.ReadOnly,
+                Pooling = true
+            }.ToString();
+            
         }
 
-        public string StripWord(string word)
+        private string StripWord(string word)
         {
             return stripWord.Replace(word.Trim().ToLower(), "");
         }
 
         // This will only return exact match.
         // Return null if not found.
-        public async Task<Word> QueryAsync(string word, CancellationToken token)
+        public WordInformation? Query(string word)
         {
             if (word == "") return null;
 
-            string sql = $"select * from stardict where word = '{word.Replace("'", "''")}'";
-
-            Word ret = null;
-            using var conn = new SQLiteConnection(connString);
-            await conn.OpenAsync(token);
-            using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
-            using SQLiteDataReader reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SQLiteDataReader;
-
+            var sql = $"select * from stardict where word = \"{word.Replace("'", "''")}\"";
+            
+            WordInformation? ret = null;
+            using var conn = new SqliteConnection(connString);
+            conn.Open();
+            using var cmd = new SqliteCommand(sql, conn);
+            using var reader = cmd.ExecuteReader();
+            
+            
+            
             if (reader.Read())
-                ret = new Word(reader);
+                ret = new WordInformation(reader);
 
             return ret;
         }
 
-        public async IAsyncEnumerable<Word> QueryRange(IEnumerable<string> words, [EnumeratorCancellation] CancellationToken token)
+        public async IAsyncEnumerable<WordInformation> QueryRange(IEnumerable<string> words, [EnumeratorCancellation] CancellationToken token)
         {
-            string queryTerms = string.Join("','", words.Select(w => w.Replace("'", "''")));
+            var queryTerms = string.Join("','", words.Select(w => w.Replace("'", "''")));
             if (queryTerms.Length == 0)
                 yield break;
+            
+            var sql = $"select * from stardict where word in ('{queryTerms}')";
 
-            string sql = $"select * from stardict where word in ('{queryTerms}')";
-
-            using var conn = new SQLiteConnection(connString);
+            await using var conn = new SqliteConnection(connString);
             await conn.OpenAsync(token);
-            using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
-            using SQLiteDataReader reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SQLiteDataReader;
+            await using var cmd = new SqliteCommand(sql, conn);
+            await using var reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SqliteDataReader;
 
             while (await reader.ReadAsync(token).ConfigureAwait(false))
-                yield return new Word(reader);
+                yield return new WordInformation(reader);
         }
 
         // This will include exact match and words beginning with it
-        public async IAsyncEnumerable<Word> QueryBeginningWith(string word, [EnumeratorCancellation] CancellationToken token = default, int limit = 20)
+        public IEnumerable<WordInformation> QueryBeginningWith(string word, int limit = 20)
         {
             word = StripWord(word);
             if (word.Length == 0) yield break;
 
-            string sql = "select * from stardict where sw like '" + word +
-                "%' order by frq > 0 desc, frq asc limit " + limit;
+            var sql = $"select * from stardict where sw like '{word}%' order by frq > 0 desc, frq limit {limit}";
 
-            using var conn = new SQLiteConnection(connString);
-            await conn.OpenAsync(token);
-            using SQLiteCommand cmd = new SQLiteCommand(sql, conn);
-            using SQLiteDataReader reader = await cmd.ExecuteReaderAsync(token).ConfigureAwait(false) as SQLiteDataReader;
-            while (await reader.ReadAsync(token).ConfigureAwait(false))
+            using var conn = new SqliteConnection(connString); 
+            conn.Open();
+            using var cmd = new SqliteCommand(sql, conn);
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
             {
-                yield return new Word(reader);
+                yield return new WordInformation(reader);
             }
         }
     }

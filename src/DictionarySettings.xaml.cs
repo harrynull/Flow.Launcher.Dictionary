@@ -16,57 +16,16 @@ using System.Windows.Shapes;
 
 namespace Dictionary
 {
-    public partial class DictionarySettings : UserControl
+    public partial class DictionarySettings
     {
-        private readonly Settings settings;
+        public Settings Settings { get; }
 
         public DictionarySettings(Settings settings)
         {
+            Settings = settings;
             InitializeComponent();
-            this.settings = settings;
         }
 
-        private void View_Loaded(object sender, RoutedEventArgs re)
-        {
-            BighugelabsToken.Text = settings.BighugelabsToken;
-            BighugelabsToken.TextChanged += (o, e) =>
-            {
-                settings.BighugelabsToken = BighugelabsToken.Text;
-                settings.Save();
-            };
-
-            ICIBAToken.Text = settings.ICIBAToken;
-            ICIBAToken.TextChanged += (o, e) =>
-            {
-                settings.ICIBAToken = ICIBAToken.Text;
-                settings.Save();
-            };
-
-            WordWebsite.Text = settings.WordWebsite;
-            WordWebsite.TextChanged += (o, e) =>
-            {
-                settings.WordWebsite = WordWebsite.Text;
-                settings.Save();
-            };
-
-            MaxEditDistance.Text = settings.MaxEditDistance.ToString();
-            MaxEditDistance.TextChanged += (o, e) =>
-            {
-                try
-                {
-                    settings.MaxEditDistance = Convert.ToInt32(MaxEditDistance.Text);
-                }
-                catch (Exception) { }
-                settings.Save();
-            };
-
-            EnglishDefinition.IsChecked = settings.ShowEnglishDefinition;
-            EnglishDefinition.Click += (o, e) =>
-            {
-                settings.ShowEnglishDefinition = EnglishDefinition.IsChecked ?? false;
-                settings.Save();
-            };
-        }
         private void Hyperlink_RequestNavigate(object sender, RequestNavigateEventArgs e)
         {
             Process.Start(new ProcessStartInfo(e.Uri.ToString())

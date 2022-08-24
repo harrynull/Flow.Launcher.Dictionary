@@ -4,9 +4,9 @@
     "Name":"Dictionary",
     "Description":"English dictionary, word correction and synonym.",
     "Author":"Harry Yu",
-    "Version":"2.2.3",
+    "Version":"2.3.1",
     "Language":"csharp",
-    "Website":"https://github.com/harrynull/WoxDictionary",
+    "Website":"https://github.com/harrynull/Flow.Launcher.Dictionary",
     "IcoPath":"Images\\plugin.png",
     "ExecuteFileName":"Dictionary.dll"
 }
