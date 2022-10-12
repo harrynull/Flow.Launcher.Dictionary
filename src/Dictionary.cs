@@ -372,7 +372,7 @@ namespace Dictionary
         }
         public void Save()
         {
-            settings.Save();
+            settings?.Save();
         }
     }
 }
