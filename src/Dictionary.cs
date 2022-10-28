@@ -11,7 +11,6 @@ using System.Windows;
 using System.Windows.Controls;
 using Flow.Launcher.Plugin;
 using System.Threading.Tasks;
-using System.Diagnostics;
 
 namespace Dictionary
 {
@@ -111,7 +110,7 @@ namespace Dictionary
                     //if(ReadWordIfNeeded(e)) return false;
                     if (settings.WordWebsite != "") 
                     {
-                      var ps = new ProcessStartInfo(string.Format(settings.WordWebsite, GetWord())) 
+                      var ps = new System.Diagnostics.ProcessStartInfo(string.Format(settings.WordWebsite, GetWord())) 
                       {
                         UseShellExecute = true,
                         Verb = "open",
