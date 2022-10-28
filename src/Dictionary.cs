@@ -108,7 +108,15 @@ namespace Dictionary
                 {
                     if (CopyIfNeeded(e)) return true;
                     //if(ReadWordIfNeeded(e)) return false;
-                    if (settings.WordWebsite != "") System.Diagnostics.Process.Start(string.Format(settings.WordWebsite, GetWord()));
+                    if (settings.WordWebsite != "") 
+                    {
+                      var ps = new System.Diagnostics.ProcessStartInfo(string.Format(settings.WordWebsite, GetWord())) 
+                      {
+                        UseShellExecute = true,
+                        Verb = "open",
+                      };
+                      System.Diagnostics.Process.Start(ps);
+                    }
                     return true;
                 };
             }
